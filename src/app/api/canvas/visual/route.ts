@@ -6,9 +6,9 @@ import sharp from 'sharp';
 import { canvasStore } from '@/lib/store';
 import { CANVAS_SIZE, PALETTE } from '@/lib/canvas';
 
-const SCALE = 4;
-const GRID_INTERVAL = 16;
-const MARGIN = 32;
+const SCALE = 8;           // 8x scale for larger, more readable output
+const GRID_INTERVAL = 8;   // Grid lines every 8 pixels for precision
+const MARGIN = 36;         // Space for axis labels
 const CANVAS_PX = CANVAS_SIZE * SCALE;
 const OUTPUT_SIZE = CANVAS_PX + MARGIN;
 

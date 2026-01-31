@@ -1,7 +1,7 @@
 // Canvas state and utilities
 
 export const CANVAS_SIZE = 128; // 128x128 for hundreds of agents
-export const PIXEL_SIZE = 4;   // Each pixel renders as 4x4 on screen (512px total)
+export const PIXEL_SIZE = 5;   // Each pixel renders as 5x5 on screen (640px total)
 
 // 16-color palette (classic r/place inspired)
 export const PALETTE = [

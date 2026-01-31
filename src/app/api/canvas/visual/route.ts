@@ -20,79 +20,145 @@ function hexToRgb(hex: string): [number, number, number] {
     : [0, 0, 0];
 }
 
+// Simple 3x5 pixel font for digits 0-9
+const DIGIT_FONT: Record<string, number[][]> = {
+  '0': [[1,1,1],[1,0,1],[1,0,1],[1,0,1],[1,1,1]],
+  '1': [[0,1,0],[1,1,0],[0,1,0],[0,1,0],[1,1,1]],
+  '2': [[1,1,1],[0,0,1],[1,1,1],[1,0,0],[1,1,1]],
+  '3': [[1,1,1],[0,0,1],[1,1,1],[0,0,1],[1,1,1]],
+  '4': [[1,0,1],[1,0,1],[1,1,1],[0,0,1],[0,0,1]],
+  '5': [[1,1,1],[1,0,0],[1,1,1],[0,0,1],[1,1,1]],
+  '6': [[1,1,1],[1,0,0],[1,1,1],[1,0,1],[1,1,1]],
+  '7': [[1,1,1],[0,0,1],[0,0,1],[0,0,1],[0,0,1]],
+  '8': [[1,1,1],[1,0,1],[1,1,1],[1,0,1],[1,1,1]],
+  '9': [[1,1,1],[1,0,1],[1,1,1],[0,0,1],[1,1,1]],
+};
+
+// Draw a number into the buffer at given position
+function drawNumber(
+  buffer: Buffer,
+  width: number,
+  num: number,
+  startX: number,
+  startY: number,
+  color: [number, number, number],
+  rightAlign = false
+) {
+  const str = num.toString();
+  const charWidth = 4; // 3px char + 1px spacing
+  const totalWidth = str.length * charWidth - 1;
+  
+  let x = rightAlign ? startX - totalWidth : startX;
+  
+  for (const char of str) {
+    const glyph = DIGIT_FONT[char];
+    if (!glyph) continue;
+    
+    for (let row = 0; row < 5; row++) {
+      for (let col = 0; col < 3; col++) {
+        if (glyph[row][col]) {
+          const px = x + col;
+          const py = startY + row;
+          if (px >= 0 && px < width && py >= 0 && py < OUTPUT_SIZE) {
+            const idx = (py * width + px) * 3;
+            buffer[idx] = color[0];
+            buffer[idx + 1] = color[1];
+            buffer[idx + 2] = color[2];
+          }
+        }
+      }
+    }
+    x += charWidth;
+  }
+}
+
 export async function GET() {
   try {
     const canvasData = await canvasStore.getCanvas();
     
-    // Create raw pixel buffer for the canvas (without margin)
-    const pixelBuffer = Buffer.alloc(CANVAS_PX * CANVAS_PX * 3);
+    // Create full output buffer including margins
+    const outputBuffer = Buffer.alloc(OUTPUT_SIZE * OUTPUT_SIZE * 3);
     
+    // Fill background with dark color
+    for (let i = 0; i < outputBuffer.length; i += 3) {
+      outputBuffer[i] = 0x11;
+      outputBuffer[i + 1] = 0x11;
+      outputBuffer[i + 2] = 0x11;
+    }
+    
+    // Draw the canvas pixels
     for (let y = 0; y < CANVAS_SIZE; y++) {
       for (let x = 0; x < CANVAS_SIZE; x++) {
         const color = hexToRgb(PALETTE[canvasData[y][x]]);
         // Fill SCALE x SCALE block
         for (let sy = 0; sy < SCALE; sy++) {
           for (let sx = 0; sx < SCALE; sx++) {
-            const px = x * SCALE + sx;
-            const py = y * SCALE + sy;
-            const idx = (py * CANVAS_PX + px) * 3;
-            pixelBuffer[idx] = color[0];
-            pixelBuffer[idx + 1] = color[1];
-            pixelBuffer[idx + 2] = color[2];
+            const px = MARGIN + x * SCALE + sx;
+            const py = MARGIN + y * SCALE + sy;
+            const idx = (py * OUTPUT_SIZE + px) * 3;
+            outputBuffer[idx] = color[0];
+            outputBuffer[idx + 1] = color[1];
+            outputBuffer[idx + 2] = color[2];
           }
         }
       }
     }
     
-    // Create the canvas image
-    const canvasImage = sharp(pixelBuffer, {
-      raw: { width: CANVAS_PX, height: CANVAS_PX, channels: 3 }
-    });
-    
-    // Generate SVG overlay with grid and labels
-    const gridLines: string[] = [];
-    const labels: string[] = [];
-    
-    // Grid lines
+    // Draw grid lines
+    const gridColor: [number, number, number] = [80, 80, 80];
     for (let i = 0; i <= CANVAS_SIZE; i += GRID_INTERVAL) {
       const pos = MARGIN + i * SCALE;
-      // Vertical
-      gridLines.push(`<line x1="${pos}" y1="${MARGIN}" x2="${pos}" y2="${OUTPUT_SIZE}" stroke="rgba(255,255,255,0.25)" stroke-width="1"/>`);
-      // Horizontal
-      gridLines.push(`<line x1="${MARGIN}" y1="${pos}" x2="${OUTPUT_SIZE}" y2="${pos}" stroke="rgba(255,255,255,0.25)" stroke-width="1"/>`);
-      // X labels (top)
-      labels.push(`<text x="${pos}" y="${MARGIN - 10}" fill="#888" font-size="11" font-family="monospace" text-anchor="middle">${i}</text>`);
-      // Y labels (left)
-      labels.push(`<text x="${MARGIN - 10}" y="${pos + 4}" fill="#888" font-size="11" font-family="monospace" text-anchor="end">${i}</text>`);
+      // Vertical line
+      for (let py = MARGIN; py < OUTPUT_SIZE; py++) {
+        const idx = (py * OUTPUT_SIZE + pos) * 3;
+        outputBuffer[idx] = gridColor[0];
+        outputBuffer[idx + 1] = gridColor[1];
+        outputBuffer[idx + 2] = gridColor[2];
+      }
+      // Horizontal line
+      for (let px = MARGIN; px < OUTPUT_SIZE; px++) {
+        const idx = (pos * OUTPUT_SIZE + px) * 3;
+        outputBuffer[idx] = gridColor[0];
+        outputBuffer[idx + 1] = gridColor[1];
+        outputBuffer[idx + 2] = gridColor[2];
+      }
     }
     
-    // Border around canvas
-    gridLines.push(`<rect x="${MARGIN}" y="${MARGIN}" width="${CANVAS_PX}" height="${CANVAS_PX}" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2"/>`);
+    // Draw border around canvas
+    const borderColor: [number, number, number] = [100, 100, 100];
+    for (let px = MARGIN; px < OUTPUT_SIZE; px++) {
+      // Top border
+      let idx = (MARGIN * OUTPUT_SIZE + px) * 3;
+      outputBuffer[idx] = borderColor[0]; outputBuffer[idx+1] = borderColor[1]; outputBuffer[idx+2] = borderColor[2];
+      // Bottom border
+      idx = ((OUTPUT_SIZE - 1) * OUTPUT_SIZE + px) * 3;
+      outputBuffer[idx] = borderColor[0]; outputBuffer[idx+1] = borderColor[1]; outputBuffer[idx+2] = borderColor[2];
+    }
+    for (let py = MARGIN; py < OUTPUT_SIZE; py++) {
+      // Left border
+      let idx = (py * OUTPUT_SIZE + MARGIN) * 3;
+      outputBuffer[idx] = borderColor[0]; outputBuffer[idx+1] = borderColor[1]; outputBuffer[idx+2] = borderColor[2];
+      // Right border
+      idx = (py * OUTPUT_SIZE + OUTPUT_SIZE - 1) * 3;
+      outputBuffer[idx] = borderColor[0]; outputBuffer[idx+1] = borderColor[1]; outputBuffer[idx+2] = borderColor[2];
+    }
     
-    // Axis indicators
-    labels.push(`<text x="${MARGIN + 4}" y="${MARGIN - 18}" fill="#666" font-size="10" font-family="monospace">x →</text>`);
-    labels.push(`<text x="6" y="${MARGIN + 12}" fill="#666" font-size="10" font-family="monospace">y ↓</text>`);
+    // Draw coordinate labels (bitmap font - no system fonts needed)
+    const labelColor: [number, number, number] = [136, 136, 136];
+    for (let i = 0; i <= CANVAS_SIZE; i += GRID_INTERVAL) {
+      const pos = MARGIN + i * SCALE;
+      // X label (top, centered on grid line)
+      drawNumber(outputBuffer, OUTPUT_SIZE, i, pos - 4, 10, labelColor);
+      // Y label (left, right-aligned)
+      drawNumber(outputBuffer, OUTPUT_SIZE, i, MARGIN - 6, pos - 2, labelColor, true);
+    }
     
-    // Info text
-    labels.push(`<text x="${OUTPUT_SIZE / 2}" y="${OUTPUT_SIZE - 4}" fill="#555" font-size="9" font-family="monospace" text-anchor="middle">${CANVAS_SIZE}×${CANVAS_SIZE} | Grid every ${GRID_INTERVAL}px | Coords: (x, y)</text>`);
-    
-    const overlaySvg = `
-      <svg width="${OUTPUT_SIZE}" height="${OUTPUT_SIZE}" xmlns="http://www.w3.org/2000/svg">
-        <rect width="100%" height="100%" fill="#111"/>
-        ${gridLines.join('\n')}
-        ${labels.join('\n')}
-      </svg>
-    `;
-    
-    // Composite: background SVG + canvas image
-    const result = await sharp(Buffer.from(overlaySvg))
-      .composite([{
-        input: await canvasImage.png().toBuffer(),
-        left: MARGIN,
-        top: MARGIN,
-      }])
-      .png()
-      .toBuffer();
+    // Convert to PNG
+    const result = await sharp(outputBuffer, {
+      raw: { width: OUTPUT_SIZE, height: OUTPUT_SIZE, channels: 3 }
+    })
+    .png()
+    .toBuffer();
     
     return new NextResponse(new Uint8Array(result), {
       headers: {

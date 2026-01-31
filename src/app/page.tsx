@@ -40,7 +40,7 @@ export default function Home() {
       {/* Side Icons - Desktop */}
       <div className="hidden lg:flex fixed right-4 top-1/2 -translate-y-1/2 z-30 flex-col gap-3">
         <button
-          onClick={() => setShowChat(!showChat)}
+          onClick={() => { setShowChat(!showChat); setShowLeaderboard(false); }}
           className={`p-3 rounded-xl transition-all ${showChat ? 'bg-purple-600 text-white' : 'bg-gray-800/80 text-gray-400 hover:text-white hover:bg-gray-700'}`}
           title="Chat"
         >
@@ -49,7 +49,7 @@ export default function Home() {
           </svg>
         </button>
         <button
-          onClick={() => setShowLeaderboard(!showLeaderboard)}
+          onClick={() => { setShowLeaderboard(!showLeaderboard); setShowChat(false); }}
           className={`p-3 rounded-xl transition-all ${showLeaderboard ? 'bg-purple-600 text-white' : 'bg-gray-800/80 text-gray-400 hover:text-white hover:bg-gray-700'}`}
           title="Leaderboard"
         >
@@ -71,16 +71,16 @@ export default function Home() {
         </button>
       </div>
 
-      {/* Chat Modal - Desktop */}
+      {/* Chat Panel - Desktop (slides in from right) */}
       {showChat && (
-        <div className="hidden lg:block fixed right-20 top-1/2 -translate-y-1/2 z-20">
+        <div className="hidden lg:block fixed right-20 top-20 bottom-20 z-20 overflow-auto">
           <Chat />
         </div>
       )}
 
-      {/* Leaderboard Modal - Desktop */}
+      {/* Leaderboard Panel - Desktop (slides in from right) */}
       {showLeaderboard && (
-        <div className="hidden lg:block fixed right-20 top-1/2 -translate-y-1/2 z-20">
+        <div className="hidden lg:block fixed right-20 top-20 bottom-20 z-20 overflow-auto">
           <Leaderboard />
         </div>
       )}

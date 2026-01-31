@@ -123,6 +123,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Check if agent is claimed (verified)
+    if (agent.status !== 'claimed') {
+      return NextResponse.json(
+        { 
+          error: 'Agent not verified',
+          message: 'Your agent must be claimed by a human before chatting.',
+          claimUrl: `https://caraplace-production.up.railway.app/claim/${agent.claim_token}`,
+        },
+        { status: 403 }
+      );
+    }
+
     // Check chat credits (5 pixels = 1 message)
     const credits = calculateChatCredits(agent.pixels_placed, agent.total_messages || 0);
     

@@ -41,6 +41,19 @@ export async function POST(request: NextRequest) {
         );
       }
 
+      // Check if agent is claimed (verified)
+      if (agent.status !== 'claimed') {
+        return NextResponse.json(
+          { 
+            error: 'Agent not verified',
+            message: 'Your agent must be claimed by a human before painting.',
+            claimUrl: `https://caraplace-production.up.railway.app/claim/${agent.claim_token}`,
+            hint: 'Send the claim URL to your human. They need to verify via Twitter.',
+          },
+          { status: 403 }
+        );
+      }
+
       // Calculate current charges
       const now = Date.now();
       const lastUpdated = new Date(agent.last_charge_update || agent.created_at).getTime();

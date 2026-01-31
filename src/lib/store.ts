@@ -1,28 +1,75 @@
-// In-memory canvas store (will be replaced with DB later)
+// Canvas store with Supabase persistence
 
+import { supabase, PixelRow } from './supabase';
 import { createEmptyCanvas, isValidPixel, PixelUpdate, CANVAS_SIZE } from './canvas';
 
 class CanvasStore {
-  private canvas: number[][];
-  private history: PixelUpdate[] = [];
-  private listeners: Set<(update: PixelUpdate) => void> = new Set();
+  private canvas: number[][] | null = null;
+  private initialized = false;
 
-  constructor() {
-    this.canvas = createEmptyCanvas();
+  // Initialize canvas from database or create empty
+  async init(): Promise<void> {
+    if (this.initialized) return;
+
+    try {
+      // Try to load existing canvas state
+      const { data: stateData } = await supabase
+        .from('canvas_state')
+        .select('canvas_data')
+        .eq('id', 1)
+        .single();
+
+      if (stateData?.canvas_data) {
+        this.canvas = stateData.canvas_data;
+      } else {
+        // Create fresh canvas and save it
+        this.canvas = createEmptyCanvas();
+        await supabase
+          .from('canvas_state')
+          .upsert({ id: 1, canvas_data: this.canvas });
+      }
+    } catch (error) {
+      console.error('Failed to init canvas from DB, using memory:', error);
+      this.canvas = createEmptyCanvas();
+    }
+
+    this.initialized = true;
   }
 
-  getCanvas(): number[][] {
-    return this.canvas;
+  async getCanvas(): Promise<number[][]> {
+    await this.init();
+    return this.canvas!;
   }
 
-  getHistory(): PixelUpdate[] {
-    return this.history;
+  async getHistory(): Promise<PixelUpdate[]> {
+    try {
+      const { data, error } = await supabase
+        .from('pixels')
+        .select('*')
+        .order('created_at', { ascending: true })
+        .limit(1000);
+
+      if (error) throw error;
+
+      return (data || []).map((row: PixelRow) => ({
+        x: row.x,
+        y: row.y,
+        color: row.color,
+        agentId: row.agent_id,
+        timestamp: new Date(row.created_at).getTime(),
+      }));
+    } catch (error) {
+      console.error('Failed to get history:', error);
+      return [];
+    }
   }
 
-  placePixel(x: number, y: number, color: number, agentId: string): PixelUpdate | null {
+  async placePixel(x: number, y: number, color: number, agentId: string): Promise<PixelUpdate | null> {
     if (!isValidPixel(x, y, color)) {
       return null;
     }
+
+    await this.init();
 
     const update: PixelUpdate = {
       x,
@@ -32,32 +79,61 @@ class CanvasStore {
       timestamp: Date.now(),
     };
 
-    this.canvas[y][x] = color;
-    this.history.push(update);
+    try {
+      // Update local canvas
+      this.canvas![y][x] = color;
 
-    // Notify listeners
-    this.listeners.forEach(listener => listener(update));
+      // Save pixel to history
+      await supabase.from('pixels').insert({
+        x,
+        y,
+        color,
+        agent_id: agentId,
+      });
 
-    return update;
+      // Save canvas state
+      await supabase
+        .from('canvas_state')
+        .upsert({ id: 1, canvas_data: this.canvas });
+
+      return update;
+    } catch (error) {
+      console.error('Failed to save pixel:', error);
+      // Still return update even if DB fails (optimistic)
+      return update;
+    }
   }
 
-  subscribe(listener: (update: PixelUpdate) => void): () => void {
-    this.listeners.add(listener);
-    return () => this.listeners.delete(listener);
-  }
+  async getStats(): Promise<{
+    totalPixels: number;
+    pixelsByAgent: Record<string, number>;
+    canvasSize: number;
+  }> {
+    try {
+      const { data, error } = await supabase
+        .from('pixels')
+        .select('agent_id');
 
-  // Stats
-  getStats() {
-    const pixelsByAgent: Record<string, number> = {};
-    this.history.forEach(update => {
-      pixelsByAgent[update.agentId] = (pixelsByAgent[update.agentId] || 0) + 1;
-    });
+      if (error) throw error;
 
-    return {
-      totalPixels: this.history.length,
-      pixelsByAgent,
-      canvasSize: CANVAS_SIZE,
-    };
+      const pixelsByAgent: Record<string, number> = {};
+      (data || []).forEach((row: { agent_id: string }) => {
+        pixelsByAgent[row.agent_id] = (pixelsByAgent[row.agent_id] || 0) + 1;
+      });
+
+      return {
+        totalPixels: data?.length || 0,
+        pixelsByAgent,
+        canvasSize: CANVAS_SIZE,
+      };
+    } catch (error) {
+      console.error('Failed to get stats:', error);
+      return {
+        totalPixels: 0,
+        pixelsByAgent: {},
+        canvasSize: CANVAS_SIZE,
+      };
+    }
   }
 }
 

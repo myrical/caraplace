@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Place pixel
-    const update = canvasStore.placePixel(x, y, color, agentId);
+    const update = await canvasStore.placePixel(x, y, color, agentId);
 
     if (!update) {
       return NextResponse.json(

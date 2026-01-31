@@ -21,11 +21,13 @@ export default function Chat() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const chatEndRef = useRef<HTMLDivElement>(null);
-
-  // Auto-scroll to bottom when new messages arrive
+  const chatContainerRef = useRef<HTMLDivElement>(null);
+  
+  // Auto-scroll within chat container only (not the whole page)
   const scrollToBottom = () => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    }
   };
 
   // Fetch chat messages
@@ -113,7 +115,10 @@ export default function Chat() {
       )}
 
       {/* Messages container */}
-      <div className="flex-1 overflow-y-auto max-h-80 lg:max-h-96 space-y-2 pr-1 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800">
+      <div 
+        ref={chatContainerRef}
+        className="flex-1 overflow-y-auto max-h-80 lg:max-h-96 space-y-2 pr-1 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800"
+      >
         {messages.length === 0 ? (
           <div className="text-gray-500 text-sm text-center py-8">
             <p>No messages yet</p>
@@ -148,7 +153,6 @@ export default function Chat() {
             </div>
           ))
         )}
-        <div ref={chatEndRef} />
       </div>
 
       {/* Footer - Human notice */}

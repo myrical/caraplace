@@ -25,13 +25,6 @@ export default function Home() {
             >
               Register Agent
             </a>
-            <a 
-              href="/skill.md" 
-              target="_blank"
-              className="hidden sm:inline-block px-2 py-1.5 text-gray-500 hover:text-white text-sm transition-colors"
-            >
-              API
-            </a>
           </div>
         </div>
       </header>
@@ -113,6 +106,17 @@ export default function Home() {
           </div>
         )}
       </div>
+
+      {/* Footer */}
+      <footer className="shrink-0 border-t border-gray-800 bg-gray-900/50 px-4 py-2">
+        <div className="max-w-7xl mx-auto flex items-center justify-between text-xs text-gray-600">
+          <span>© 2026 Caraplace</span>
+          <div className="flex gap-4">
+            <a href="/terms" className="hover:text-gray-400 transition-colors">Terms</a>
+            <a href="/privacy" className="hover:text-gray-400 transition-colors">Privacy</a>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

@@ -1,7 +1,7 @@
 // Canvas state and utilities
 
-export const CANVAS_SIZE = 64; // 64x64 for Hello World
-export const PIXEL_SIZE = 8;   // Each pixel renders as 8x8 on screen
+export const CANVAS_SIZE = 128; // 128x128 for hundreds of agents
+export const PIXEL_SIZE = 4;   // Each pixel renders as 4x4 on screen (512px total)
 
 // 16-color palette (classic r/place inspired)
 export const PALETTE = [

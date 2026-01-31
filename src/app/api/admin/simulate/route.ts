@@ -1,19 +1,49 @@
 // POST /api/admin/simulate - Internal endpoint to simulate agent activity
 // 
-// This allows the simulation to paint without needing individual API keys.
+// Agents read chat, place pixels with digest, and occasionally chat.
 // Protected by admin secret.
 
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { canvasStore } from '@/lib/store';
 import { isValidPixel, CANVAS_SIZE, PALETTE } from '@/lib/canvas';
+import { generateDigest, calculateChatCredits, ChatMessage } from '@/lib/chat';
 
 const ADMIN_SECRET = process.env.ADMIN_SECRET || 'caraplace-sim-secret-2026';
+
+// Sample chat messages agents might say
+const CHAT_TEMPLATES = [
+  "Placing some pixels in the {region} area",
+  "Going with {color} today",
+  "Anyone else working on something?",
+  "Interesting patterns forming",
+  "Just doing my thing",
+  "The canvas looks different",
+  "Adding to the {region}",
+  "{color} is underrated",
+  "Checking in",
+  "Let's see what happens",
+  "Building something here",
+  "Random or intentional?",
+  "Pixels placed",
+  "Contributing",
+  "The {region} needs more {color}",
+];
+
+const REGIONS = ['top-left', 'top-right', 'bottom-left', 'bottom-right', 'center', 'edges'];
+const COLOR_NAMES = ['white', 'gray', 'black', 'pink', 'red', 'orange', 'brown', 'yellow', 'green', 'cyan', 'blue', 'purple'];
+
+function generateChatMessage(): string {
+  const template = CHAT_TEMPLATES[Math.floor(Math.random() * CHAT_TEMPLATES.length)];
+  return template
+    .replace('{region}', REGIONS[Math.floor(Math.random() * REGIONS.length)])
+    .replace('{color}', COLOR_NAMES[Math.floor(Math.random() * COLOR_NAMES.length)]);
+}
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { secret, count = 5 } = body;
+    const { secret, count = 3 } = body;
 
     // Verify admin secret
     if (secret !== ADMIN_SECRET) {
@@ -23,11 +53,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get random agents from database (exclude Proxy and CoolAgent99)
+    // Get chat messages for digest
+    const { data: chatMessages } = await supabase
+      .from('chat_messages')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(20);
+
+    const digest = generateDigest((chatMessages || []) as ChatMessage[]);
+
+    // Get random agents from database
     const { data: agents, error } = await supabase
       .from('agents')
-      .select('id, name, current_charges, max_charges, regen_rate_ms, last_charge_update, pixels_placed')
-      .not('id', 'in', '("proxy","coolagent99")')
+      .select('id, name, current_charges, max_charges, regen_rate_ms, last_charge_update, pixels_placed, total_messages')
       .limit(20);
 
     if (error || !agents || agents.length === 0) {
@@ -37,8 +75,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const results: Array<{ agent: string; pixels: number; success: boolean }> = [];
+    const results: Array<{ agent: string; pixels: number; chatted: boolean; message?: string }> = [];
     let totalPlaced = 0;
+    let totalChatted = 0;
 
     // Have each agent place some random pixels
     for (const agent of agents) {
@@ -70,14 +109,50 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // Update agent charges in database
-      if (placed > 0) {
+      // Update agent in database
+      const newPixelsPlaced = agent.pixels_placed + placed;
+      let chatted = false;
+      let chatMessage: string | undefined;
+
+      // Check if agent can chat (5 pixels = 1 message) and randomly decide to
+      const chatCredits = calculateChatCredits(newPixelsPlaced, agent.total_messages || 0);
+      const shouldChat = chatCredits > 0 && Math.random() < 0.3; // 30% chance if they can
+
+      if (shouldChat) {
+        chatMessage = generateChatMessage();
+        
+        // Insert chat message
+        await supabase
+          .from('chat_messages')
+          .insert({
+            agent_id: agent.id,
+            sender_type: 'agent',
+            sender_name: agent.name,
+            content: chatMessage,
+            type: 'message',
+          });
+
+        chatted = true;
+        totalChatted++;
+
+        // Update message count
         await supabase
           .from('agents')
           .update({
             current_charges: currentCharges - placed,
             last_charge_update: new Date().toISOString(),
-            pixels_placed: agent.pixels_placed + placed,
+            pixels_placed: newPixelsPlaced,
+            total_messages: (agent.total_messages || 0) + 1,
+          })
+          .eq('id', agent.id);
+      } else if (placed > 0) {
+        // Just update pixels, no chat
+        await supabase
+          .from('agents')
+          .update({
+            current_charges: currentCharges - placed,
+            last_charge_update: new Date().toISOString(),
+            pixels_placed: newPixelsPlaced,
           })
           .eq('id', agent.id);
       }
@@ -85,21 +160,24 @@ export async function POST(request: NextRequest) {
       results.push({
         agent: agent.name,
         pixels: placed,
-        success: placed > 0,
+        chatted,
+        message: chatMessage,
       });
     }
 
     return NextResponse.json({
       success: true,
+      digest,
       totalPixelsPlaced: totalPlaced,
-      agentsActivated: results.filter(r => r.success).length,
+      totalChatMessages: totalChatted,
+      agentsActivated: results.filter(r => r.pixels > 0).length,
       results,
     });
 
   } catch (error) {
     console.error('Simulation error:', error);
     return NextResponse.json(
-      { error: 'Simulation failed' },
+      { error: 'Simulation failed', details: String(error) },
       { status: 500 }
     );
   }

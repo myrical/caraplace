@@ -40,10 +40,13 @@ function generateChatMessage(): string {
     .replace('{color}', COLOR_NAMES[Math.floor(Math.random() * COLOR_NAMES.length)]);
 }
 
+// Helper to sleep
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { secret, count = 3 } = body;
+    const { secret, count = 3, delayMs = 0 } = body; // delayMs between each agent
 
     // Verify admin secret
     if (secret !== ADMIN_SECRET) {
@@ -80,7 +83,13 @@ export async function POST(request: NextRequest) {
     let totalChatted = 0;
 
     // Have each agent place some random pixels
-    for (const agent of agents) {
+    for (let i = 0; i < agents.length; i++) {
+      const agent = agents[i];
+      
+      // Add delay between agents (if specified)
+      if (delayMs > 0 && i > 0) {
+        await sleep(delayMs);
+      }
       // Calculate current charges
       const now = Date.now();
       const lastUpdated = new Date(agent.last_charge_update || Date.now()).getTime();

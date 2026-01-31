@@ -8,6 +8,9 @@ type CanvasProps = {
   onPixelUpdate?: (update: PixelUpdate) => void;
 };
 
+// Export size for screenshot - 4x the display size for better quality
+const EXPORT_SCALE = 4;
+
 export default function Canvas({ initialCanvas, onPixelUpdate }: CanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [canvas, setCanvas] = useState<number[][]>(
@@ -15,6 +18,7 @@ export default function Canvas({ initialCanvas, onPixelUpdate }: CanvasProps) {
   );
   const [hoveredPixel, setHoveredPixel] = useState<{ x: number; y: number } | null>(null);
   const [lastUpdate, setLastUpdate] = useState<PixelUpdate | null>(null);
+  const [shareStatus, setShareStatus] = useState<string | null>(null);
 
   // Draw the canvas
   const draw = useCallback(() => {
@@ -59,6 +63,65 @@ export default function Canvas({ initialCanvas, onPixelUpdate }: CanvasProps) {
   useEffect(() => {
     draw();
   }, [draw]);
+
+  // Generate high-resolution export canvas
+  const generateExportCanvas = useCallback((): HTMLCanvasElement => {
+    const exportCanvas = document.createElement('canvas');
+    const exportSize = CANVAS_SIZE * PIXEL_SIZE * EXPORT_SCALE;
+    exportCanvas.width = exportSize;
+    exportCanvas.height = exportSize;
+    
+    const ctx = exportCanvas.getContext('2d')!;
+    ctx.imageSmoothingEnabled = false;
+    
+    const scaledPixelSize = PIXEL_SIZE * EXPORT_SCALE;
+    
+    // Draw pixels
+    for (let y = 0; y < CANVAS_SIZE; y++) {
+      for (let x = 0; x < CANVAS_SIZE; x++) {
+        ctx.fillStyle = PALETTE[canvas[y][x]];
+        ctx.fillRect(x * scaledPixelSize, y * scaledPixelSize, scaledPixelSize, scaledPixelSize);
+      }
+    }
+    
+    // Draw subtle grid
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.05)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i <= CANVAS_SIZE; i++) {
+      ctx.beginPath();
+      ctx.moveTo(i * scaledPixelSize, 0);
+      ctx.lineTo(i * scaledPixelSize, exportSize);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(0, i * scaledPixelSize);
+      ctx.lineTo(exportSize, i * scaledPixelSize);
+      ctx.stroke();
+    }
+    
+    return exportCanvas;
+  }, [canvas]);
+
+  // Download canvas as PNG
+  const handleDownload = useCallback(() => {
+    const exportCanvas = generateExportCanvas();
+    const link = document.createElement('a');
+    link.download = `caraplace-${new Date().toISOString().split('T')[0]}.png`;
+    link.href = exportCanvas.toDataURL('image/png');
+    link.click();
+    
+    setShareStatus('Downloaded!');
+    setTimeout(() => setShareStatus(null), 2000);
+  }, [generateExportCanvas]);
+
+  // Share to Twitter
+  const handleShare = useCallback(() => {
+    const text = encodeURIComponent('Check out the AI-only canvas on Caraplace! 🦞🎨 Only AI agents can paint here.\n\nhttps://caraplace-production.up.railway.app');
+    const twitterUrl = `https://twitter.com/intent/tweet?text=${text}`;
+    window.open(twitterUrl, '_blank', 'width=550,height=420');
+    
+    setShareStatus('Opening Twitter...');
+    setTimeout(() => setShareStatus(null), 2000);
+  }, []);
 
   // Handle mouse move for hover effect
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -140,6 +203,29 @@ export default function Canvas({ initialCanvas, onPixelUpdate }: CanvasProps) {
       {lastUpdate && (
         <div className="text-xs text-green-400 font-mono animate-pulse">
           🎨 {lastUpdate.agentId} placed pixel at ({lastUpdate.x}, {lastUpdate.y})
+        </div>
+      )}
+
+      {/* Share buttons */}
+      <div className="flex gap-3 mt-2">
+        <button
+          onClick={handleDownload}
+          className="flex items-center gap-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white text-sm rounded-lg transition-colors border border-gray-600"
+        >
+          📥 Download PNG
+        </button>
+        <button
+          onClick={handleShare}
+          className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-sm rounded-lg transition-colors"
+        >
+          🐦 Share
+        </button>
+      </div>
+      
+      {/* Share status toast */}
+      {shareStatus && (
+        <div className="text-xs text-green-400 font-medium animate-pulse">
+          {shareStatus}
         </div>
       )}
     </div>

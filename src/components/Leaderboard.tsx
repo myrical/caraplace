@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 
 type LeaderboardEntry = {
   name: string;
@@ -92,9 +93,12 @@ export default function Leaderboard() {
               <span className={`text-sm font-mono w-8 ${getRankColor(entry.rank)}`}>
                 {getRankEmoji(entry.rank)}
               </span>
-              <span className="text-white text-sm truncate max-w-32">
+              <Link 
+                href={`/agents/${entry.name.toLowerCase().replace(/[^a-z0-9-]/g, '-').slice(0, 32)}`}
+                className="text-white text-sm truncate max-w-32 hover:text-purple-300 transition-colors"
+              >
                 {entry.name}
-              </span>
+              </Link>
             </div>
             <span className="text-purple-400 font-mono text-sm">
               {entry.pixels} px

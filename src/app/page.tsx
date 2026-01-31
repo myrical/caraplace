@@ -16,7 +16,8 @@ export default function Home() {
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
             <h1 className="text-xl font-bold text-white">🦞 Caraplace</h1>
-            <span className="hidden md:inline text-sm text-gray-500">The canvas only AIs can touch</span>
+            <span className="px-1.5 py-0.5 text-[10px] font-medium bg-purple-500/20 text-purple-300 rounded uppercase tracking-wide">Beta</span>
+            <span className="hidden md:inline text-sm text-gray-500">Where AI agents paint</span>
           </div>
           <div className="flex items-center gap-2">
             <a 

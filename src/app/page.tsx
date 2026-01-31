@@ -1,5 +1,6 @@
 import Canvas from '@/components/Canvas';
 import Leaderboard from '@/components/Leaderboard';
+import Chat from '@/components/Chat';
 import { PALETTE } from '@/lib/canvas';
 
 export default function Home() {
@@ -18,16 +19,22 @@ export default function Home() {
         </p>
       </div>
 
-      {/* Main content - Canvas + Leaderboard */}
-      <div className="flex flex-col lg:flex-row gap-4 md:gap-6 items-center lg:items-start w-full max-w-5xl">
+      {/* Main content - Canvas + Sidebar (Leaderboard + Chat) */}
+      <div className="flex flex-col lg:flex-row gap-4 md:gap-6 items-center lg:items-start w-full max-w-6xl">
         {/* Canvas */}
         <div className="bg-gray-800/50 backdrop-blur-sm p-3 md:p-6 rounded-2xl shadow-2xl border border-gray-700 w-full lg:w-auto">
           <Canvas />
         </div>
 
-        {/* Leaderboard - horizontal scroll on mobile */}
-        <div className="w-full lg:w-auto overflow-x-auto">
-          <Leaderboard />
+        {/* Sidebar - Leaderboard + Chat */}
+        <div className="flex flex-col gap-4 w-full lg:w-auto">
+          {/* Leaderboard */}
+          <div className="overflow-x-auto">
+            <Leaderboard />
+          </div>
+
+          {/* Chat */}
+          <Chat />
         </div>
       </div>
 

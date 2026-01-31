@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { canvasStore } from '@/lib/store';
 import { supabase } from '@/lib/supabase';
 import { isValidPixel, PALETTE, CANVAS_SIZE } from '@/lib/canvas';
+import { validateDigest, ChatMessage } from '@/lib/chat';
 
 // Legacy hardcoded keys (for backwards compat during transition)
 const LEGACY_KEYS: Record<string, string> = {
@@ -14,14 +15,16 @@ const LEGACY_KEYS: Record<string, string> = {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { x, y, color, agentKey } = body;
+    const { x, y, color, agentKey, chat_digest } = body;
 
     let agentId: string;
     let useChargeSystem = false;
+    let skipDigestCheck = false;
 
-    // Check legacy keys first
+    // Check legacy keys first (skip digest for backwards compat)
     if (LEGACY_KEYS[agentKey]) {
       agentId = LEGACY_KEYS[agentKey];
+      skipDigestCheck = true; // Legacy keys don't need digest
     } 
     // Check new API keys (cp_xxx format)
     else if (agentKey?.startsWith('cp_')) {
@@ -78,6 +81,41 @@ export async function POST(request: NextRequest) {
         { error: 'Invalid agent key. Register at /api/agents/register' },
         { status: 401 }
       );
+    }
+
+    // Validate chat digest (proves agent read the chat)
+    if (!skipDigestCheck) {
+      if (!chat_digest) {
+        return NextResponse.json(
+          { 
+            error: 'Chat digest required. Fetch GET /api/chat first.',
+            hint: 'Every pixel placement requires a recent chat digest to prove you read the chat.',
+          },
+          { status: 400 }
+        );
+      }
+
+      // Fetch recent messages for digest validation
+      const { data: recentMessages } = await supabase
+        .from('chat_messages')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(20);
+
+      const digestValidation = validateDigest(
+        chat_digest, 
+        (recentMessages || []) as ChatMessage[]
+      );
+
+      if (!digestValidation.valid) {
+        return NextResponse.json(
+          { 
+            error: digestValidation.reason,
+            hint: 'Your digest is stale or invalid. Call GET /api/chat for a fresh one.',
+          },
+          { status: 400 }
+        );
+      }
     }
 
     // Validate pixel

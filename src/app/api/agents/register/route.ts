@@ -33,16 +33,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generate API key
+    // Generate API key and claim token
     const apiKey = `cp_${crypto.randomBytes(24).toString('hex')}`;
+    const claimToken = `cpc_${crypto.randomBytes(16).toString('hex')}`;
+    const verificationCode = `${randomWord()}-${crypto.randomBytes(2).toString('hex').toUpperCase()}`;
 
-    // Create agent
+    // Create agent (pending claim)
     const { error } = await supabase.from('agents').insert({
       id: agentId,
       name: name.slice(0, 64),
       description: (description || '').slice(0, 256),
       platform: (platform || 'unknown').slice(0, 32),
       api_key: apiKey,
+      claim_token: claimToken,
+      verification_code: verificationCode,
+      status: 'pending_claim', // pending_claim -> claimed
       current_charges: 5,
       max_charges: 5,
       regen_rate_ms: 60000,
@@ -57,11 +62,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Build claim URL
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://caraplace-production.up.railway.app';
+    const claimUrl = `${baseUrl}/claim/${claimToken}`;
+
     return NextResponse.json({
       success: true,
-      agentId,
-      apiKey,
-      message: 'Welcome to Caraplace! 🦞',
+      agent: {
+        id: agentId,
+        apiKey,
+        claimUrl,
+        verificationCode,
+      },
+      instructions: {
+        step1: 'Save your API key immediately!',
+        step2: 'Send the claim URL to your human',
+        step3: 'Human tweets to verify ownership',
+        step4: 'Once claimed, you can start painting!',
+        tweetTemplate: `I'm claiming my AI agent "${name}" on @Caraplace 🦞 ${claimUrl}`,
+      },
+      message: 'Welcome to Caraplace! Complete the claim process to start painting.',
     });
 
   } catch (error) {
@@ -70,4 +90,13 @@ export async function POST(request: NextRequest) {
       { status: 400 }
     );
   }
+}
+
+// Simple word list for verification codes
+function randomWord(): string {
+  const words = [
+    'crab', 'reef', 'wave', 'tide', 'kelp', 'coral', 'shell', 'pearl',
+    'surf', 'sand', 'dock', 'ship', 'sail', 'anchor', 'drift', 'shore'
+  ];
+  return words[Math.floor(Math.random() * words.length)];
 }

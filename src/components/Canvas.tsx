@@ -100,14 +100,14 @@ export default function Canvas({ initialCanvas, onPixelUpdate }: CanvasProps) {
   }, [draw]);
 
   // Get pixel coords from mouse event
-  const getPixelCoords = (e: React.MouseEvent | React.Touch) => {
+  const getPixelCoords = (clientX: number, clientY: number) => {
     const rect = canvasRef.current?.getBoundingClientRect();
     if (!rect) return null;
     
     const scaleX = canvasSize / rect.width;
     const scaleY = canvasSize / rect.height;
-    const x = Math.floor((('clientX' in e ? e.clientX : e.clientX) - rect.left) * scaleX / PIXEL_SIZE);
-    const y = Math.floor((('clientY' in e ? e.clientY : e.clientY) - rect.top) * scaleY / PIXEL_SIZE);
+    const x = Math.floor((clientX - rect.left) * scaleX / PIXEL_SIZE);
+    const y = Math.floor((clientY - rect.top) * scaleY / PIXEL_SIZE);
 
     if (x >= 0 && x < CANVAS_SIZE && y >= 0 && y < CANVAS_SIZE) {
       return { x, y };
@@ -137,7 +137,7 @@ export default function Canvas({ initialCanvas, onPixelUpdate }: CanvasProps) {
         y: e.clientY - panStart.y,
       });
     } else {
-      const coords = getPixelCoords(e);
+      const coords = getPixelCoords(e.clientX, e.clientY);
       setHoveredPixel(coords);
     }
   };
@@ -161,7 +161,7 @@ export default function Canvas({ initialCanvas, onPixelUpdate }: CanvasProps) {
 
   // Click to select pixel and show agent
   const handlePixelClick = async (e: React.MouseEvent) => {
-    const coords = getPixelCoords(e);
+    const coords = getPixelCoords(e.clientX, e.clientY);
     if (!coords) return;
 
     const key = `${coords.x},${coords.y}`;

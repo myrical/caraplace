@@ -4,48 +4,41 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { CANVAS_SIZE, PIXEL_SIZE, PALETTE, PixelUpdate } from '@/lib/canvas';
 import { subscribeToPixels, PixelPayload } from '@/lib/realtime';
 
-type CanvasProps = {
-  initialCanvas?: number[][];
-  onPixelUpdate?: (update: PixelUpdate) => void;
-};
-
 type PixelInfo = {
   x: number;
   y: number;
   color: number;
   agentId: string;
-  timestamp: string;
 };
 
 const EXPORT_SCALE = 4;
 const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 4;
 
-export default function Canvas({ initialCanvas, onPixelUpdate }: CanvasProps) {
+export default function Canvas() {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [canvas, setCanvas] = useState<number[][]>(
-    initialCanvas || Array(CANVAS_SIZE).fill(null).map(() => Array(CANVAS_SIZE).fill(0))
+    Array(CANVAS_SIZE).fill(null).map(() => Array(CANVAS_SIZE).fill(0))
   );
   const [pixelOwners, setPixelOwners] = useState<Record<string, string>>({});
-  const [hoveredPixel, setHoveredPixel] = useState<{ x: number; y: number } | null>(null);
   const [selectedPixel, setSelectedPixel] = useState<PixelInfo | null>(null);
   const [lastUpdate, setLastUpdate] = useState<PixelUpdate | null>(null);
-  const [shareStatus, setShareStatus] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1);
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
   
-  // Pan state
-  const [isPanning, setIsPanning] = useState(false);
-  const [panStart, setPanStart] = useState({ x: 0, y: 0 });
-  const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
+  // Drag state
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
-  const canvasSize = CANVAS_SIZE * PIXEL_SIZE;
-  const scaledSize = canvasSize * zoom;
+  const canvasPixels = CANVAS_SIZE * PIXEL_SIZE; // Native canvas size
 
   // Draw the canvas
   const draw = useCallback(() => {
     const ctx = canvasRef.current?.getContext('2d');
     if (!ctx) return;
+
+    ctx.clearRect(0, 0, canvasPixels, canvasPixels);
 
     for (let y = 0; y < CANVAS_SIZE; y++) {
       for (let x = 0; x < CANVAS_SIZE; x++) {
@@ -54,189 +47,176 @@ export default function Canvas({ initialCanvas, onPixelUpdate }: CanvasProps) {
       }
     }
 
-    // Draw grid when zoomed in
-    if (zoom >= 1.5) {
-      ctx.strokeStyle = 'rgba(0, 0, 0, 0.15)';
+    // Grid when zoomed in
+    if (zoom >= 2) {
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)';
       ctx.lineWidth = 0.5;
       for (let i = 0; i <= CANVAS_SIZE; i++) {
         ctx.beginPath();
         ctx.moveTo(i * PIXEL_SIZE, 0);
-        ctx.lineTo(i * PIXEL_SIZE, canvasSize);
+        ctx.lineTo(i * PIXEL_SIZE, canvasPixels);
         ctx.stroke();
         ctx.beginPath();
         ctx.moveTo(0, i * PIXEL_SIZE);
-        ctx.lineTo(canvasSize, i * PIXEL_SIZE);
+        ctx.lineTo(canvasPixels, i * PIXEL_SIZE);
         ctx.stroke();
       }
     }
 
-    // Highlight hovered pixel
-    if (hoveredPixel) {
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(
-        hoveredPixel.x * PIXEL_SIZE,
-        hoveredPixel.y * PIXEL_SIZE,
-        PIXEL_SIZE,
-        PIXEL_SIZE
-      );
-    }
-
     // Highlight selected pixel
     if (selectedPixel) {
-      ctx.strokeStyle = 'rgba(147, 51, 234, 1)';
+      ctx.strokeStyle = '#a855f7';
       ctx.lineWidth = 3;
       ctx.strokeRect(
-        selectedPixel.x * PIXEL_SIZE,
-        selectedPixel.y * PIXEL_SIZE,
-        PIXEL_SIZE,
-        PIXEL_SIZE
+        selectedPixel.x * PIXEL_SIZE + 1,
+        selectedPixel.y * PIXEL_SIZE + 1,
+        PIXEL_SIZE - 2,
+        PIXEL_SIZE - 2
       );
     }
-  }, [canvas, hoveredPixel, selectedPixel, zoom, canvasSize]);
+  }, [canvas, selectedPixel, zoom, canvasPixels]);
 
   useEffect(() => {
     draw();
   }, [draw]);
 
-  // Get pixel coords from mouse event
-  const getPixelCoords = (clientX: number, clientY: number) => {
-    const rect = canvasRef.current?.getBoundingClientRect();
-    if (!rect) return null;
+  // Convert screen coords to canvas pixel coords
+  const screenToPixel = (clientX: number, clientY: number) => {
+    const container = containerRef.current;
+    if (!container) return null;
     
-    const scaleX = canvasSize / rect.width;
-    const scaleY = canvasSize / rect.height;
-    const x = Math.floor((clientX - rect.left) * scaleX / PIXEL_SIZE);
-    const y = Math.floor((clientY - rect.top) * scaleY / PIXEL_SIZE);
-
-    if (x >= 0 && x < CANVAS_SIZE && y >= 0 && y < CANVAS_SIZE) {
-      return { x, y };
+    const rect = container.getBoundingClientRect();
+    const containerX = clientX - rect.left;
+    const containerY = clientY - rect.top;
+    
+    // Account for zoom and offset
+    const canvasX = (containerX - offset.x) / zoom;
+    const canvasY = (containerY - offset.y) / zoom;
+    
+    const pixelX = Math.floor(canvasX / PIXEL_SIZE);
+    const pixelY = Math.floor(canvasY / PIXEL_SIZE);
+    
+    if (pixelX >= 0 && pixelX < CANVAS_SIZE && pixelY >= 0 && pixelY < CANVAS_SIZE) {
+      return { x: pixelX, y: pixelY };
     }
     return null;
   };
 
-  // Handle scroll zoom
+  // Zoom with scroll wheel (centered on mouse)
   const handleWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault();
-    const delta = e.deltaY > 0 ? -0.15 : 0.15;
-    setZoom(prev => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, prev + delta)));
-  }, []);
+    
+    const container = containerRef.current;
+    if (!container) return;
+    
+    const rect = container.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+    
+    const delta = e.deltaY > 0 ? 0.9 : 1.1;
+    const newZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, zoom * delta));
+    
+    // Zoom toward mouse position
+    const scale = newZoom / zoom;
+    setOffset({
+      x: mouseX - (mouseX - offset.x) * scale,
+      y: mouseY - (mouseY - offset.y) * scale,
+    });
+    setZoom(newZoom);
+  }, [zoom, offset]);
 
-  // Pan handlers
+  // Drag handlers
   const handleMouseDown = (e: React.MouseEvent) => {
-    if (e.button === 0) { // Left click
-      setIsPanning(true);
-      setPanStart({ x: e.clientX - panOffset.x, y: e.clientY - panOffset.y });
-    }
+    setIsDragging(true);
+    setDragStart({ x: e.clientX - offset.x, y: e.clientY - offset.y });
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (isPanning) {
-      setPanOffset({
-        x: e.clientX - panStart.x,
-        y: e.clientY - panStart.y,
+    if (isDragging) {
+      setOffset({
+        x: e.clientX - dragStart.x,
+        y: e.clientY - dragStart.y,
       });
-    } else {
-      const coords = getPixelCoords(e.clientX, e.clientY);
-      setHoveredPixel(coords);
     }
   };
 
-  const handleMouseUp = (e: React.MouseEvent) => {
-    if (isPanning) {
-      setIsPanning(false);
-      // If we didn't pan much, treat as a click
-      const dx = Math.abs(e.clientX - panStart.x - panOffset.x);
-      const dy = Math.abs(e.clientY - panStart.y - panOffset.y);
-      if (dx < 5 && dy < 5) {
-        handlePixelClick(e);
+  const handleMouseUp = async (e: React.MouseEvent) => {
+    if (isDragging) {
+      const moved = Math.abs(e.clientX - dragStart.x - offset.x) > 5 || 
+                    Math.abs(e.clientY - dragStart.y - offset.y) > 5;
+      setIsDragging(false);
+      
+      // If didn't move much, treat as click
+      if (!moved) {
+        const pixel = screenToPixel(e.clientX, e.clientY);
+        if (pixel) {
+          const key = `${pixel.x},${pixel.y}`;
+          let agentId = pixelOwners[key];
+          
+          if (!agentId) {
+            try {
+              const res = await fetch(`/api/pixel/info?x=${pixel.x}&y=${pixel.y}`);
+              if (res.ok) {
+                const data = await res.json();
+                if (data.agentId) {
+                  agentId = data.agentId;
+                  setPixelOwners(prev => ({ ...prev, [key]: agentId }));
+                }
+              }
+            } catch {}
+          }
+          
+          if (agentId) {
+            setSelectedPixel({
+              x: pixel.x,
+              y: pixel.y,
+              color: canvas[pixel.y][pixel.x],
+              agentId,
+            });
+          } else {
+            setSelectedPixel(null);
+          }
+        }
       }
     }
   };
 
   const handleMouseLeave = () => {
-    setIsPanning(false);
-    setHoveredPixel(null);
+    setIsDragging(false);
   };
 
-  // Click to select pixel and show agent
-  const handlePixelClick = async (e: React.MouseEvent) => {
-    const coords = getPixelCoords(e.clientX, e.clientY);
-    if (!coords) return;
-
-    const key = `${coords.x},${coords.y}`;
-    const agentId = pixelOwners[key];
-    
-    if (agentId) {
-      setSelectedPixel({
-        x: coords.x,
-        y: coords.y,
-        color: canvas[coords.y][coords.x],
-        agentId,
-        timestamp: '',
-      });
-    } else {
-      // Try to fetch from API
-      try {
-        const res = await fetch(`/api/pixel/info?x=${coords.x}&y=${coords.y}`);
-        if (res.ok) {
-          const data = await res.json();
-          if (data.agentId) {
-            setSelectedPixel({
-              x: coords.x,
-              y: coords.y,
-              color: canvas[coords.y][coords.x],
-              agentId: data.agentId,
-              timestamp: data.timestamp || '',
-            });
-            setPixelOwners(prev => ({ ...prev, [key]: data.agentId }));
-          }
-        }
-      } catch (err) {
-        // Silently fail
-      }
-    }
+  // Reset view
+  const resetView = () => {
+    setZoom(1);
+    setOffset({ x: 0, y: 0 });
   };
 
-  // Generate export canvas
-  const generateExportCanvas = useCallback((): HTMLCanvasElement => {
+  // Export
+  const handleDownload = useCallback(() => {
     const exportCanvas = document.createElement('canvas');
-    const exportSize = canvasSize * EXPORT_SCALE;
-    exportCanvas.width = exportSize;
-    exportCanvas.height = exportSize;
-    
+    exportCanvas.width = canvasPixels * EXPORT_SCALE;
+    exportCanvas.height = canvasPixels * EXPORT_SCALE;
     const ctx = exportCanvas.getContext('2d')!;
     ctx.imageSmoothingEnabled = false;
-    const scaledPixelSize = PIXEL_SIZE * EXPORT_SCALE;
-    
+    const s = PIXEL_SIZE * EXPORT_SCALE;
     for (let y = 0; y < CANVAS_SIZE; y++) {
       for (let x = 0; x < CANVAS_SIZE; x++) {
         ctx.fillStyle = PALETTE[canvas[y][x]];
-        ctx.fillRect(x * scaledPixelSize, y * scaledPixelSize, scaledPixelSize, scaledPixelSize);
+        ctx.fillRect(x * s, y * s, s, s);
       }
     }
-    
-    return exportCanvas;
-  }, [canvas, canvasSize]);
-
-  const handleDownload = useCallback(() => {
-    const exportCanvas = generateExportCanvas();
     const link = document.createElement('a');
     link.download = `caraplace-${new Date().toISOString().split('T')[0]}.png`;
     link.href = exportCanvas.toDataURL('image/png');
     link.click();
-    setShareStatus('Downloaded!');
-    setTimeout(() => setShareStatus(null), 2000);
-  }, [generateExportCanvas]);
+  }, [canvas, canvasPixels]);
 
   const handleShare = useCallback(() => {
     const text = encodeURIComponent('Check out the AI-only canvas on Caraplace! 🦞🎨\n\nhttps://caraplace-production.up.railway.app');
-    window.open(`https://twitter.com/intent/tweet?text=${text}`, '_blank', 'width=550,height=420');
-    setShareStatus('Opening Twitter...');
-    setTimeout(() => setShareStatus(null), 2000);
+    window.open(`https://twitter.com/intent/tweet?text=${text}`, '_blank');
   }, []);
 
-  // Initial fetch + realtime subscription
+  // Load canvas + realtime
   useEffect(() => {
     const loadCanvas = async () => {
       try {
@@ -258,7 +238,6 @@ export default function Canvas({ initialCanvas, onPixelUpdate }: CanvasProps) {
         }
         return newCanvas;
       });
-      // Track pixel owner
       setPixelOwners(prev => ({ ...prev, [`${pixel.x},${pixel.y}`]: pixel.agent_id }));
       setLastUpdate({
         x: pixel.x,
@@ -277,38 +256,11 @@ export default function Canvas({ initialCanvas, onPixelUpdate }: CanvasProps) {
   }, []);
 
   return (
-    <div className="flex flex-col items-center gap-3">
-      {/* Zoom controls */}
-      <div className="flex items-center gap-3 text-sm text-gray-400">
-        <button 
-          onClick={() => setZoom(prev => Math.max(MIN_ZOOM, prev - 0.25))}
-          className="w-8 h-8 bg-gray-700 hover:bg-gray-600 rounded flex items-center justify-center"
-        >
-          −
-        </button>
-        <span className="w-14 text-center">{Math.round(zoom * 100)}%</span>
-        <button 
-          onClick={() => setZoom(prev => Math.min(MAX_ZOOM, prev + 0.25))}
-          className="w-8 h-8 bg-gray-700 hover:bg-gray-600 rounded flex items-center justify-center"
-        >
-          +
-        </button>
-        <button 
-          onClick={() => { setZoom(1); setPanOffset({ x: 0, y: 0 }); }}
-          className="px-3 h-8 bg-gray-700 hover:bg-gray-600 rounded text-xs"
-        >
-          Reset
-        </button>
-      </div>
-
-      {/* Canvas container - no scrollbar, drag to pan */}
+    <div className="flex flex-col h-full">
+      {/* Canvas viewport - fixed size */}
       <div 
         ref={containerRef}
-        className="relative overflow-hidden border-2 border-gray-700 rounded-lg shadow-2xl bg-gray-900 cursor-grab active:cursor-grabbing"
-        style={{ 
-          width: Math.min(scaledSize, typeof window !== 'undefined' ? window.innerWidth * 0.9 : 800),
-          height: Math.min(scaledSize, typeof window !== 'undefined' ? window.innerHeight * 0.7 : 600),
-        }}
+        className="flex-1 relative overflow-hidden bg-gray-900 rounded-lg border border-gray-700 cursor-grab active:cursor-grabbing"
         onWheel={handleWheel}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
@@ -317,74 +269,76 @@ export default function Canvas({ initialCanvas, onPixelUpdate }: CanvasProps) {
       >
         <canvas
           ref={canvasRef}
-          width={canvasSize}
-          height={canvasSize}
-          style={{ 
+          width={canvasPixels}
+          height={canvasPixels}
+          style={{
             imageRendering: 'pixelated',
-            width: scaledSize,
-            height: scaledSize,
-            transform: `translate(${panOffset.x}px, ${panOffset.y}px)`,
-            transition: isPanning ? 'none' : 'transform 0.1s ease-out',
+            position: 'absolute',
+            width: canvasPixels * zoom,
+            height: canvasPixels * zoom,
+            left: offset.x,
+            top: offset.y,
           }}
         />
-      </div>
-      
-      {/* Info bar */}
-      <div className="flex flex-wrap items-center justify-center gap-4 text-sm">
-        {hoveredPixel && (
-          <div className="text-gray-400 font-mono">
-            ({hoveredPixel.x}, {hoveredPixel.y})
-          </div>
-        )}
         
+        {/* Zoom indicator */}
+        <div className="absolute bottom-3 left-3 flex items-center gap-2 bg-gray-900/80 rounded-lg px-3 py-1.5 text-sm">
+          <button onClick={() => setZoom(z => Math.max(MIN_ZOOM, z / 1.2))} className="text-gray-400 hover:text-white px-1">−</button>
+          <span className="text-gray-300 w-12 text-center">{Math.round(zoom * 100)}%</span>
+          <button onClick={() => setZoom(z => Math.min(MAX_ZOOM, z * 1.2))} className="text-gray-400 hover:text-white px-1">+</button>
+          <button onClick={resetView} className="text-gray-400 hover:text-white text-xs ml-2">Reset</button>
+        </div>
+
+        {/* Selected pixel info */}
         {selectedPixel && (
-          <div className="flex items-center gap-2 px-3 py-1 bg-purple-900/50 rounded-lg border border-purple-500/50">
+          <div className="absolute top-3 left-3 flex items-center gap-2 bg-gray-900/90 rounded-lg px-3 py-2 text-sm border border-purple-500/50">
             <div 
-              className="w-4 h-4 rounded border border-gray-500"
+              className="w-5 h-5 rounded border border-gray-500"
               style={{ backgroundColor: PALETTE[selectedPixel.color] }}
             />
             <span className="text-purple-300 font-medium">{selectedPixel.agentId}</span>
-            <span className="text-gray-500">at ({selectedPixel.x}, {selectedPixel.y})</span>
-            <button 
-              onClick={() => setSelectedPixel(null)}
-              className="text-gray-400 hover:text-white ml-1"
-            >
-              ×
-            </button>
+            <span className="text-gray-500">({selectedPixel.x}, {selectedPixel.y})</span>
+            <button onClick={() => setSelectedPixel(null)} className="text-gray-400 hover:text-white ml-1">×</button>
           </div>
         )}
-        
-        {lastUpdate && !selectedPixel && (
-          <div className="text-green-400 font-mono animate-pulse">
+
+        {/* Last update indicator */}
+        {lastUpdate && (
+          <div className="absolute top-3 right-3 bg-gray-900/80 rounded-lg px-3 py-1.5 text-sm text-green-400 animate-pulse">
             🎨 {lastUpdate.agentId}
           </div>
         )}
       </div>
 
-      {/* Tip */}
-      <p className="text-xs text-gray-500">
-        Scroll to zoom • Drag to pan • Click pixel for agent info
-      </p>
+      {/* Bottom bar - palette + actions */}
+      <div className="flex items-center justify-between gap-4 mt-3 px-1">
+        {/* Color palette */}
+        <div className="flex gap-1 flex-wrap">
+          {PALETTE.map((color, i) => (
+            <div
+              key={i}
+              className="w-6 h-6 rounded border border-gray-600 hover:scale-110 transition-transform"
+              style={{ backgroundColor: color }}
+              title={`${i}`}
+            />
+          ))}
+        </div>
 
-      {/* Action buttons */}
-      <div className="flex gap-2">
-        <button
-          onClick={handleDownload}
-          className="flex items-center gap-2 px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-white text-sm rounded-lg transition-colors"
-        >
-          📥 PNG
-        </button>
-        <button
-          onClick={handleShare}
-          className="flex items-center gap-2 px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white text-sm rounded-lg transition-colors"
-        >
-          🐦 Share
-        </button>
+        {/* Actions */}
+        <div className="flex gap-2 shrink-0">
+          <button onClick={handleDownload} className="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-white text-sm rounded-lg">
+            📥 PNG
+          </button>
+          <button onClick={handleShare} className="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white text-sm rounded-lg">
+            🐦 Share
+          </button>
+        </div>
       </div>
-      
-      {shareStatus && (
-        <div className="text-xs text-green-400 animate-pulse">{shareStatus}</div>
-      )}
+
+      {/* Tip */}
+      <p className="text-xs text-gray-500 text-center mt-2">
+        Scroll to zoom • Drag to pan • Click pixel for agent
+      </p>
     </div>
   );
 }

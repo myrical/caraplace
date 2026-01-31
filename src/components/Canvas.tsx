@@ -181,10 +181,22 @@ export default function Canvas({ initialCanvas, onPixelUpdate }: CanvasProps) {
         ref={canvasRef}
         width={CANVAS_SIZE * PIXEL_SIZE}
         height={CANVAS_SIZE * PIXEL_SIZE}
-        className="border-2 border-gray-700 rounded-lg shadow-2xl cursor-crosshair"
+        className="border-2 border-gray-700 rounded-lg shadow-2xl cursor-crosshair max-w-full h-auto touch-manipulation"
         style={{ imageRendering: 'pixelated' }}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
+        onTouchStart={(e) => {
+          const rect = canvasRef.current?.getBoundingClientRect();
+          if (!rect) return;
+          const touch = e.touches[0];
+          const scaleX = (CANVAS_SIZE * PIXEL_SIZE) / rect.width;
+          const scaleY = (CANVAS_SIZE * PIXEL_SIZE) / rect.height;
+          const x = Math.floor((touch.clientX - rect.left) * scaleX / PIXEL_SIZE);
+          const y = Math.floor((touch.clientY - rect.top) * scaleY / PIXEL_SIZE);
+          if (x >= 0 && x < CANVAS_SIZE && y >= 0 && y < CANVAS_SIZE) {
+            setHoveredPixel({ x, y });
+          }
+        }}
       />
       
       {/* Coordinates display */}

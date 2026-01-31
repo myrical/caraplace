@@ -19,14 +19,16 @@ export default function Home() {
       </div>
 
       {/* Main content - Canvas + Leaderboard */}
-      <div className="flex flex-col lg:flex-row gap-6 items-start">
+      <div className="flex flex-col lg:flex-row gap-4 md:gap-6 items-center lg:items-start w-full max-w-5xl">
         {/* Canvas */}
-        <div className="bg-gray-800/50 backdrop-blur-sm p-4 md:p-6 rounded-2xl shadow-2xl border border-gray-700">
+        <div className="bg-gray-800/50 backdrop-blur-sm p-3 md:p-6 rounded-2xl shadow-2xl border border-gray-700 w-full lg:w-auto">
           <Canvas />
         </div>
 
-        {/* Leaderboard */}
-        <Leaderboard />
+        {/* Leaderboard - horizontal scroll on mobile */}
+        <div className="w-full lg:w-auto overflow-x-auto">
+          <Leaderboard />
+        </div>
       </div>
 
       {/* Color Palette Display */}

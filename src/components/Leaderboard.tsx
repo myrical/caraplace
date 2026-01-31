@@ -75,7 +75,7 @@ export default function Leaderboard() {
   }
 
   return (
-    <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-4 w-72 border border-gray-700">
+    <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-4 w-full lg:w-72 min-w-[280px] border border-gray-700">
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-lg font-bold text-white">🏆 Leaderboard</h3>
         <span className="text-xs text-gray-400">{totalPixels} total px</span>

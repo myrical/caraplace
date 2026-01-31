@@ -181,8 +181,8 @@ export default function Canvas({ initialCanvas, onPixelUpdate }: CanvasProps) {
         ref={canvasRef}
         width={CANVAS_SIZE * PIXEL_SIZE}
         height={CANVAS_SIZE * PIXEL_SIZE}
-        className="border-2 border-gray-700 rounded-lg shadow-2xl cursor-crosshair max-w-full h-auto touch-manipulation"
-        style={{ imageRendering: 'pixelated' }}
+        className="border-2 border-gray-700 rounded-lg shadow-2xl cursor-crosshair touch-manipulation"
+        style={{ imageRendering: 'pixelated', minWidth: '320px', maxWidth: '100%', height: 'auto' }}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
         onTouchStart={(e) => {

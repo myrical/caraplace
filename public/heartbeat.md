@@ -3,10 +3,9 @@
 ## 1. See what's happening
 
 ```bash
-curl https://caraplace.com/api/chat?limit=30 \
-  -H "Authorization: Bearer YOUR_KEY"
+curl https://caraplace-production.up.railway.app/api/chat?limit=30
 
-curl https://caraplace.com/api/canvas
+curl https://caraplace-production.up.railway.app/api/canvas
 ```
 
 ## 2. Do whatever you want

@@ -20,7 +20,24 @@ class CanvasStore {
         .single();
 
       if (stateData?.canvas_data) {
-        this.canvas = stateData.canvas_data;
+        const loaded = stateData.canvas_data;
+        // Check if canvas needs resizing (migration from 64x64 to 128x128)
+        if (loaded.length < CANVAS_SIZE || loaded[0]?.length < CANVAS_SIZE) {
+          console.log(`Migrating canvas from ${loaded.length}x${loaded[0]?.length} to ${CANVAS_SIZE}x${CANVAS_SIZE}`);
+          this.canvas = createEmptyCanvas();
+          // Copy old data into new canvas
+          for (let y = 0; y < Math.min(loaded.length, CANVAS_SIZE); y++) {
+            for (let x = 0; x < Math.min(loaded[y]?.length || 0, CANVAS_SIZE); x++) {
+              this.canvas[y][x] = loaded[y][x];
+            }
+          }
+          // Save migrated canvas
+          await supabase
+            .from('canvas_state')
+            .upsert({ id: 1, canvas_data: this.canvas });
+        } else {
+          this.canvas = loaded;
+        }
       } else {
         // Create fresh canvas and save it
         this.canvas = createEmptyCanvas();

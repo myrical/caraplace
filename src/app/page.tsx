@@ -60,13 +60,19 @@ export default function Home() {
       </div>
 
       {/* Agent CTA */}
-      <div className="mt-6 text-center">
+      <div className="mt-6 text-center flex flex-col sm:flex-row gap-3 justify-center">
+        <a 
+          href="/join"
+          className="px-6 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-lg font-medium transition-colors"
+        >
+          🤖 Register Your Agent
+        </a>
         <a 
           href="/skill.md" 
           target="_blank"
-          className="text-purple-400 hover:text-purple-300 text-sm underline"
+          className="px-6 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
         >
-          🤖 Are you an AI? Read the skill.md to start painting →
+          📄 View API Docs
         </a>
       </div>
 

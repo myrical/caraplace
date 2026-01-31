@@ -8,9 +8,13 @@ import { CANVAS_SIZE, PALETTE } from '@/lib/canvas';
 
 const SCALE = 8;           // 8x scale for larger, more readable output
 const GRID_INTERVAL = 8;   // Grid lines every 8 pixels for precision
-const MARGIN = 36;         // Space for axis labels
+const MARGIN_LEFT = 36;    // Space for Y-axis labels
+const MARGIN_TOP = 20;     // Space for X-axis labels
+const MARGIN_RIGHT = 12;   // Padding on right
+const MARGIN_BOTTOM = 16;  // Padding at bottom
 const CANVAS_PX = CANVAS_SIZE * SCALE;
-const OUTPUT_SIZE = CANVAS_PX + MARGIN;
+const OUTPUT_WIDTH = MARGIN_LEFT + CANVAS_PX + MARGIN_RIGHT;
+const OUTPUT_HEIGHT = MARGIN_TOP + CANVAS_PX + MARGIN_BOTTOM;
 
 // Convert hex color to RGB
 function hexToRgb(hex: string): [number, number, number] {
@@ -37,7 +41,8 @@ const DIGIT_FONT: Record<string, number[][]> = {
 // Draw a number into the buffer at given position
 function drawNumber(
   buffer: Buffer,
-  width: number,
+  bufferWidth: number,
+  bufferHeight: number,
   num: number,
   startX: number,
   startY: number,
@@ -59,8 +64,8 @@ function drawNumber(
         if (glyph[row][col]) {
           const px = x + col;
           const py = startY + row;
-          if (px >= 0 && px < width && py >= 0 && py < OUTPUT_SIZE) {
-            const idx = (py * width + px) * 3;
+          if (px >= 0 && px < bufferWidth && py >= 0 && py < bufferHeight) {
+            const idx = (py * bufferWidth + px) * 3;
             buffer[idx] = color[0];
             buffer[idx + 1] = color[1];
             buffer[idx + 2] = color[2];
@@ -77,7 +82,7 @@ export async function GET() {
     const canvasData = await canvasStore.getCanvas();
     
     // Create full output buffer including margins
-    const outputBuffer = Buffer.alloc(OUTPUT_SIZE * OUTPUT_SIZE * 3);
+    const outputBuffer = Buffer.alloc(OUTPUT_WIDTH * OUTPUT_HEIGHT * 3);
     
     // Fill background with dark color
     for (let i = 0; i < outputBuffer.length; i += 3) {
@@ -93,9 +98,9 @@ export async function GET() {
         // Fill SCALE x SCALE block
         for (let sy = 0; sy < SCALE; sy++) {
           for (let sx = 0; sx < SCALE; sx++) {
-            const px = MARGIN + x * SCALE + sx;
-            const py = MARGIN + y * SCALE + sy;
-            const idx = (py * OUTPUT_SIZE + px) * 3;
+            const px = MARGIN_LEFT + x * SCALE + sx;
+            const py = MARGIN_TOP + y * SCALE + sy;
+            const idx = (py * OUTPUT_WIDTH + px) * 3;
             outputBuffer[idx] = color[0];
             outputBuffer[idx + 1] = color[1];
             outputBuffer[idx + 2] = color[2];
@@ -107,55 +112,67 @@ export async function GET() {
     // Draw grid lines
     const gridColor: [number, number, number] = [80, 80, 80];
     for (let i = 0; i <= CANVAS_SIZE; i += GRID_INTERVAL) {
-      const pos = MARGIN + i * SCALE;
+      const posX = MARGIN_LEFT + i * SCALE;
+      const posY = MARGIN_TOP + i * SCALE;
+      
       // Vertical line
-      for (let py = MARGIN; py < OUTPUT_SIZE; py++) {
-        const idx = (py * OUTPUT_SIZE + pos) * 3;
-        outputBuffer[idx] = gridColor[0];
-        outputBuffer[idx + 1] = gridColor[1];
-        outputBuffer[idx + 2] = gridColor[2];
+      for (let py = MARGIN_TOP; py < MARGIN_TOP + CANVAS_PX; py++) {
+        if (posX < OUTPUT_WIDTH) {
+          const idx = (py * OUTPUT_WIDTH + posX) * 3;
+          outputBuffer[idx] = gridColor[0];
+          outputBuffer[idx + 1] = gridColor[1];
+          outputBuffer[idx + 2] = gridColor[2];
+        }
       }
       // Horizontal line
-      for (let px = MARGIN; px < OUTPUT_SIZE; px++) {
-        const idx = (pos * OUTPUT_SIZE + px) * 3;
-        outputBuffer[idx] = gridColor[0];
-        outputBuffer[idx + 1] = gridColor[1];
-        outputBuffer[idx + 2] = gridColor[2];
+      for (let px = MARGIN_LEFT; px < MARGIN_LEFT + CANVAS_PX; px++) {
+        if (posY < OUTPUT_HEIGHT) {
+          const idx = (posY * OUTPUT_WIDTH + px) * 3;
+          outputBuffer[idx] = gridColor[0];
+          outputBuffer[idx + 1] = gridColor[1];
+          outputBuffer[idx + 2] = gridColor[2];
+        }
       }
     }
     
     // Draw border around canvas
     const borderColor: [number, number, number] = [100, 100, 100];
-    for (let px = MARGIN; px < OUTPUT_SIZE; px++) {
+    const canvasRight = MARGIN_LEFT + CANVAS_PX;
+    const canvasBottom = MARGIN_TOP + CANVAS_PX;
+    
+    // Top and bottom borders
+    for (let px = MARGIN_LEFT; px <= canvasRight; px++) {
       // Top border
-      let idx = (MARGIN * OUTPUT_SIZE + px) * 3;
+      let idx = (MARGIN_TOP * OUTPUT_WIDTH + px) * 3;
       outputBuffer[idx] = borderColor[0]; outputBuffer[idx+1] = borderColor[1]; outputBuffer[idx+2] = borderColor[2];
       // Bottom border
-      idx = ((OUTPUT_SIZE - 1) * OUTPUT_SIZE + px) * 3;
+      idx = (canvasBottom * OUTPUT_WIDTH + px) * 3;
       outputBuffer[idx] = borderColor[0]; outputBuffer[idx+1] = borderColor[1]; outputBuffer[idx+2] = borderColor[2];
     }
-    for (let py = MARGIN; py < OUTPUT_SIZE; py++) {
+    // Left and right borders
+    for (let py = MARGIN_TOP; py <= canvasBottom; py++) {
       // Left border
-      let idx = (py * OUTPUT_SIZE + MARGIN) * 3;
+      let idx = (py * OUTPUT_WIDTH + MARGIN_LEFT) * 3;
       outputBuffer[idx] = borderColor[0]; outputBuffer[idx+1] = borderColor[1]; outputBuffer[idx+2] = borderColor[2];
       // Right border
-      idx = (py * OUTPUT_SIZE + OUTPUT_SIZE - 1) * 3;
+      idx = (py * OUTPUT_WIDTH + canvasRight) * 3;
       outputBuffer[idx] = borderColor[0]; outputBuffer[idx+1] = borderColor[1]; outputBuffer[idx+2] = borderColor[2];
     }
     
     // Draw coordinate labels (bitmap font - no system fonts needed)
     const labelColor: [number, number, number] = [136, 136, 136];
     for (let i = 0; i <= CANVAS_SIZE; i += GRID_INTERVAL) {
-      const pos = MARGIN + i * SCALE;
+      const posX = MARGIN_LEFT + i * SCALE;
+      const posY = MARGIN_TOP + i * SCALE;
       // X label (top, centered on grid line)
-      drawNumber(outputBuffer, OUTPUT_SIZE, i, pos - 4, 10, labelColor);
+      drawNumber(outputBuffer, OUTPUT_WIDTH, OUTPUT_HEIGHT, i, posX - 4, 6, labelColor);
       // Y label (left, right-aligned)
-      drawNumber(outputBuffer, OUTPUT_SIZE, i, MARGIN - 6, pos - 2, labelColor, true);
+      drawNumber(outputBuffer, OUTPUT_WIDTH, OUTPUT_HEIGHT, i, MARGIN_LEFT - 6, posY - 2, labelColor, true);
     }
     
     // Convert to PNG
     const result = await sharp(outputBuffer, {
-      raw: { width: OUTPUT_SIZE, height: OUTPUT_SIZE, channels: 3 }
+      raw: { width: OUTPUT_WIDTH, height: OUTPUT_HEIGHT, channels: 3 }
     })
     .png()
     .toBuffer();

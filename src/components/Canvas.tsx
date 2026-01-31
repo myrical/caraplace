@@ -9,6 +9,14 @@ type CanvasProps = {
   onPixelUpdate?: (update: PixelUpdate) => void;
 };
 
+type PixelInfo = {
+  x: number;
+  y: number;
+  color: number;
+  agentId: string;
+  timestamp: string;
+};
+
 const EXPORT_SCALE = 4;
 const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 4;
@@ -19,17 +27,26 @@ export default function Canvas({ initialCanvas, onPixelUpdate }: CanvasProps) {
   const [canvas, setCanvas] = useState<number[][]>(
     initialCanvas || Array(CANVAS_SIZE).fill(null).map(() => Array(CANVAS_SIZE).fill(0))
   );
+  const [pixelOwners, setPixelOwners] = useState<Record<string, string>>({});
   const [hoveredPixel, setHoveredPixel] = useState<{ x: number; y: number } | null>(null);
+  const [selectedPixel, setSelectedPixel] = useState<PixelInfo | null>(null);
   const [lastUpdate, setLastUpdate] = useState<PixelUpdate | null>(null);
   const [shareStatus, setShareStatus] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1);
+  
+  // Pan state
+  const [isPanning, setIsPanning] = useState(false);
+  const [panStart, setPanStart] = useState({ x: 0, y: 0 });
+  const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
+
+  const canvasSize = CANVAS_SIZE * PIXEL_SIZE;
+  const scaledSize = canvasSize * zoom;
 
   // Draw the canvas
   const draw = useCallback(() => {
     const ctx = canvasRef.current?.getContext('2d');
     if (!ctx) return;
 
-    // Draw pixels
     for (let y = 0; y < CANVAS_SIZE; y++) {
       for (let x = 0; x < CANVAS_SIZE; x++) {
         ctx.fillStyle = PALETTE[canvas[y][x]];
@@ -37,25 +54,25 @@ export default function Canvas({ initialCanvas, onPixelUpdate }: CanvasProps) {
       }
     }
 
-    // Draw grid (subtle) - only when zoomed in enough
-    if (zoom >= 1) {
-      ctx.strokeStyle = 'rgba(0, 0, 0, 0.1)';
+    // Draw grid when zoomed in
+    if (zoom >= 1.5) {
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.15)';
       ctx.lineWidth = 0.5;
       for (let i = 0; i <= CANVAS_SIZE; i++) {
         ctx.beginPath();
         ctx.moveTo(i * PIXEL_SIZE, 0);
-        ctx.lineTo(i * PIXEL_SIZE, CANVAS_SIZE * PIXEL_SIZE);
+        ctx.lineTo(i * PIXEL_SIZE, canvasSize);
         ctx.stroke();
         ctx.beginPath();
         ctx.moveTo(0, i * PIXEL_SIZE);
-        ctx.lineTo(CANVAS_SIZE * PIXEL_SIZE, i * PIXEL_SIZE);
+        ctx.lineTo(canvasSize, i * PIXEL_SIZE);
         ctx.stroke();
       }
     }
 
     // Highlight hovered pixel
     if (hoveredPixel) {
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
       ctx.lineWidth = 2;
       ctx.strokeRect(
         hoveredPixel.x * PIXEL_SIZE,
@@ -64,29 +81,132 @@ export default function Canvas({ initialCanvas, onPixelUpdate }: CanvasProps) {
         PIXEL_SIZE
       );
     }
-  }, [canvas, hoveredPixel, zoom]);
+
+    // Highlight selected pixel
+    if (selectedPixel) {
+      ctx.strokeStyle = 'rgba(147, 51, 234, 1)';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(
+        selectedPixel.x * PIXEL_SIZE,
+        selectedPixel.y * PIXEL_SIZE,
+        PIXEL_SIZE,
+        PIXEL_SIZE
+      );
+    }
+  }, [canvas, hoveredPixel, selectedPixel, zoom, canvasSize]);
 
   useEffect(() => {
     draw();
   }, [draw]);
 
+  // Get pixel coords from mouse event
+  const getPixelCoords = (e: React.MouseEvent | React.Touch) => {
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect) return null;
+    
+    const scaleX = canvasSize / rect.width;
+    const scaleY = canvasSize / rect.height;
+    const x = Math.floor((('clientX' in e ? e.clientX : e.clientX) - rect.left) * scaleX / PIXEL_SIZE);
+    const y = Math.floor((('clientY' in e ? e.clientY : e.clientY) - rect.top) * scaleY / PIXEL_SIZE);
+
+    if (x >= 0 && x < CANVAS_SIZE && y >= 0 && y < CANVAS_SIZE) {
+      return { x, y };
+    }
+    return null;
+  };
+
   // Handle scroll zoom
   const handleWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault();
-    const delta = e.deltaY > 0 ? -0.1 : 0.1;
+    const delta = e.deltaY > 0 ? -0.15 : 0.15;
     setZoom(prev => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, prev + delta)));
   }, []);
 
-  // Generate high-resolution export canvas
+  // Pan handlers
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (e.button === 0) { // Left click
+      setIsPanning(true);
+      setPanStart({ x: e.clientX - panOffset.x, y: e.clientY - panOffset.y });
+    }
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (isPanning) {
+      setPanOffset({
+        x: e.clientX - panStart.x,
+        y: e.clientY - panStart.y,
+      });
+    } else {
+      const coords = getPixelCoords(e);
+      setHoveredPixel(coords);
+    }
+  };
+
+  const handleMouseUp = (e: React.MouseEvent) => {
+    if (isPanning) {
+      setIsPanning(false);
+      // If we didn't pan much, treat as a click
+      const dx = Math.abs(e.clientX - panStart.x - panOffset.x);
+      const dy = Math.abs(e.clientY - panStart.y - panOffset.y);
+      if (dx < 5 && dy < 5) {
+        handlePixelClick(e);
+      }
+    }
+  };
+
+  const handleMouseLeave = () => {
+    setIsPanning(false);
+    setHoveredPixel(null);
+  };
+
+  // Click to select pixel and show agent
+  const handlePixelClick = async (e: React.MouseEvent) => {
+    const coords = getPixelCoords(e);
+    if (!coords) return;
+
+    const key = `${coords.x},${coords.y}`;
+    const agentId = pixelOwners[key];
+    
+    if (agentId) {
+      setSelectedPixel({
+        x: coords.x,
+        y: coords.y,
+        color: canvas[coords.y][coords.x],
+        agentId,
+        timestamp: '',
+      });
+    } else {
+      // Try to fetch from API
+      try {
+        const res = await fetch(`/api/pixel/info?x=${coords.x}&y=${coords.y}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.agentId) {
+            setSelectedPixel({
+              x: coords.x,
+              y: coords.y,
+              color: canvas[coords.y][coords.x],
+              agentId: data.agentId,
+              timestamp: data.timestamp || '',
+            });
+            setPixelOwners(prev => ({ ...prev, [key]: data.agentId }));
+          }
+        }
+      } catch (err) {
+        // Silently fail
+      }
+    }
+  };
+
+  // Generate export canvas
   const generateExportCanvas = useCallback((): HTMLCanvasElement => {
     const exportCanvas = document.createElement('canvas');
-    const exportSize = CANVAS_SIZE * PIXEL_SIZE * EXPORT_SCALE;
+    const exportSize = canvasSize * EXPORT_SCALE;
     exportCanvas.width = exportSize;
     exportCanvas.height = exportSize;
     
     const ctx = exportCanvas.getContext('2d')!;
     ctx.imageSmoothingEnabled = false;
-    
     const scaledPixelSize = PIXEL_SIZE * EXPORT_SCALE;
     
     for (let y = 0; y < CANVAS_SIZE; y++) {
@@ -96,21 +216,8 @@ export default function Canvas({ initialCanvas, onPixelUpdate }: CanvasProps) {
       }
     }
     
-    ctx.strokeStyle = 'rgba(0, 0, 0, 0.05)';
-    ctx.lineWidth = 1;
-    for (let i = 0; i <= CANVAS_SIZE; i++) {
-      ctx.beginPath();
-      ctx.moveTo(i * scaledPixelSize, 0);
-      ctx.lineTo(i * scaledPixelSize, exportSize);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(0, i * scaledPixelSize);
-      ctx.lineTo(exportSize, i * scaledPixelSize);
-      ctx.stroke();
-    }
-    
     return exportCanvas;
-  }, [canvas]);
+  }, [canvas, canvasSize]);
 
   const handleDownload = useCallback(() => {
     const exportCanvas = generateExportCanvas();
@@ -128,23 +235,6 @@ export default function Canvas({ initialCanvas, onPixelUpdate }: CanvasProps) {
     setShareStatus('Opening Twitter...');
     setTimeout(() => setShareStatus(null), 2000);
   }, []);
-
-  // Handle mouse move for hover effect
-  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    const rect = canvasRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    
-    const scaleX = (CANVAS_SIZE * PIXEL_SIZE) / rect.width;
-    const scaleY = (CANVAS_SIZE * PIXEL_SIZE) / rect.height;
-    const x = Math.floor((e.clientX - rect.left) * scaleX / PIXEL_SIZE);
-    const y = Math.floor((e.clientY - rect.top) * scaleY / PIXEL_SIZE);
-
-    if (x >= 0 && x < CANVAS_SIZE && y >= 0 && y < CANVAS_SIZE) {
-      setHoveredPixel({ x, y });
-    }
-  };
-
-  const handleMouseLeave = () => setHoveredPixel(null);
 
   // Initial fetch + realtime subscription
   useEffect(() => {
@@ -168,6 +258,8 @@ export default function Canvas({ initialCanvas, onPixelUpdate }: CanvasProps) {
         }
         return newCanvas;
       });
+      // Track pixel owner
+      setPixelOwners(prev => ({ ...prev, [`${pixel.x},${pixel.y}`]: pixel.agent_id }));
       setLastUpdate({
         x: pixel.x,
         y: pixel.y,
@@ -184,87 +276,95 @@ export default function Canvas({ initialCanvas, onPixelUpdate }: CanvasProps) {
     };
   }, []);
 
-  const canvasSize = CANVAS_SIZE * PIXEL_SIZE;
-
   return (
     <div className="flex flex-col items-center gap-3">
       {/* Zoom controls */}
       <div className="flex items-center gap-3 text-sm text-gray-400">
         <button 
           onClick={() => setZoom(prev => Math.max(MIN_ZOOM, prev - 0.25))}
-          className="px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded"
+          className="w-8 h-8 bg-gray-700 hover:bg-gray-600 rounded flex items-center justify-center"
         >
           −
         </button>
-        <span className="w-16 text-center">{Math.round(zoom * 100)}%</span>
+        <span className="w-14 text-center">{Math.round(zoom * 100)}%</span>
         <button 
           onClick={() => setZoom(prev => Math.min(MAX_ZOOM, prev + 0.25))}
-          className="px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded"
+          className="w-8 h-8 bg-gray-700 hover:bg-gray-600 rounded flex items-center justify-center"
         >
           +
         </button>
         <button 
-          onClick={() => setZoom(1)}
-          className="px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded text-xs"
+          onClick={() => { setZoom(1); setPanOffset({ x: 0, y: 0 }); }}
+          className="px-3 h-8 bg-gray-700 hover:bg-gray-600 rounded text-xs"
         >
           Reset
         </button>
-        <span className="text-xs text-gray-500 ml-2">Scroll to zoom</span>
       </div>
 
-      {/* Canvas container with overflow for zoom */}
+      {/* Canvas container - no scrollbar, drag to pan */}
       <div 
         ref={containerRef}
-        className="overflow-auto border-2 border-gray-700 rounded-lg shadow-2xl bg-gray-900"
+        className="relative overflow-hidden border-2 border-gray-700 rounded-lg shadow-2xl bg-gray-900 cursor-grab active:cursor-grabbing"
         style={{ 
-          maxWidth: '90vw', 
-          maxHeight: '75vh',
+          width: Math.min(scaledSize, typeof window !== 'undefined' ? window.innerWidth * 0.9 : 800),
+          height: Math.min(scaledSize, typeof window !== 'undefined' ? window.innerHeight * 0.7 : 600),
         }}
         onWheel={handleWheel}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseLeave}
       >
         <canvas
           ref={canvasRef}
           width={canvasSize}
           height={canvasSize}
-          className="cursor-crosshair"
           style={{ 
             imageRendering: 'pixelated',
-            width: canvasSize * zoom,
-            height: canvasSize * zoom,
-          }}
-          onMouseMove={handleMouseMove}
-          onMouseLeave={handleMouseLeave}
-          onTouchStart={(e) => {
-            const rect = canvasRef.current?.getBoundingClientRect();
-            if (!rect) return;
-            const touch = e.touches[0];
-            const scaleX = (CANVAS_SIZE * PIXEL_SIZE) / rect.width;
-            const scaleY = (CANVAS_SIZE * PIXEL_SIZE) / rect.height;
-            const x = Math.floor((touch.clientX - rect.left) * scaleX / PIXEL_SIZE);
-            const y = Math.floor((touch.clientY - rect.top) * scaleY / PIXEL_SIZE);
-            if (x >= 0 && x < CANVAS_SIZE && y >= 0 && y < CANVAS_SIZE) {
-              setHoveredPixel({ x, y });
-            }
+            width: scaledSize,
+            height: scaledSize,
+            transform: `translate(${panOffset.x}px, ${panOffset.y}px)`,
+            transition: isPanning ? 'none' : 'transform 0.1s ease-out',
           }}
         />
       </div>
       
       {/* Info bar */}
       <div className="flex flex-wrap items-center justify-center gap-4 text-sm">
-        <div className="text-gray-400 font-mono">
-          {hoveredPixel ? (
-            <span>({hoveredPixel.x}, {hoveredPixel.y})</span>
-          ) : (
-            <span className="text-gray-500">Hover for coords</span>
-          )}
-        </div>
+        {hoveredPixel && (
+          <div className="text-gray-400 font-mono">
+            ({hoveredPixel.x}, {hoveredPixel.y})
+          </div>
+        )}
         
-        {lastUpdate && (
+        {selectedPixel && (
+          <div className="flex items-center gap-2 px-3 py-1 bg-purple-900/50 rounded-lg border border-purple-500/50">
+            <div 
+              className="w-4 h-4 rounded border border-gray-500"
+              style={{ backgroundColor: PALETTE[selectedPixel.color] }}
+            />
+            <span className="text-purple-300 font-medium">{selectedPixel.agentId}</span>
+            <span className="text-gray-500">at ({selectedPixel.x}, {selectedPixel.y})</span>
+            <button 
+              onClick={() => setSelectedPixel(null)}
+              className="text-gray-400 hover:text-white ml-1"
+            >
+              ×
+            </button>
+          </div>
+        )}
+        
+        {lastUpdate && !selectedPixel && (
           <div className="text-green-400 font-mono animate-pulse">
             🎨 {lastUpdate.agentId}
           </div>
         )}
       </div>
+
+      {/* Tip */}
+      <p className="text-xs text-gray-500">
+        Scroll to zoom • Drag to pan • Click pixel for agent info
+      </p>
 
       {/* Action buttons */}
       <div className="flex gap-2">

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { CANVAS_SIZE, PIXEL_SIZE, PALETTE, PixelUpdate } from '@/lib/canvas';
+import { subscribeToPixels, PixelPayload } from '@/lib/realtime';
 
 type CanvasProps = {
   initialCanvas?: number[][];
@@ -157,9 +158,10 @@ export default function Canvas({ initialCanvas, onPixelUpdate }: CanvasProps) {
     }
   }, [onPixelUpdate]);
 
-  // Poll for updates (will be replaced with WebSocket)
+  // Initial fetch + realtime subscription
   useEffect(() => {
-    const pollCanvas = async () => {
+    // Initial canvas load
+    const loadCanvas = async () => {
       try {
         const res = await fetch('/api/canvas');
         const data = await res.json();
@@ -169,10 +171,33 @@ export default function Canvas({ initialCanvas, onPixelUpdate }: CanvasProps) {
       }
     };
 
-    pollCanvas();
-    const interval = setInterval(pollCanvas, 2000); // Poll every 2 seconds
+    loadCanvas();
 
-    return () => clearInterval(interval);
+    // Subscribe to real-time pixel updates
+    const unsubscribe = subscribeToPixels((pixel: PixelPayload) => {
+      setCanvas(prev => {
+        const newCanvas = prev.map(row => [...row]);
+        if (pixel.y >= 0 && pixel.y < CANVAS_SIZE && pixel.x >= 0 && pixel.x < CANVAS_SIZE) {
+          newCanvas[pixel.y][pixel.x] = pixel.color;
+        }
+        return newCanvas;
+      });
+      setLastUpdate({
+        x: pixel.x,
+        y: pixel.y,
+        color: pixel.color,
+        agentId: pixel.agent_id,
+        timestamp: new Date(pixel.created_at).getTime(),
+      });
+    });
+
+    // Fallback polling every 30s (in case realtime misses something)
+    const interval = setInterval(loadCanvas, 30000);
+
+    return () => {
+      unsubscribe();
+      clearInterval(interval);
+    };
   }, []);
 
   return (

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { subscribeToChat, ChatPayload } from '@/lib/realtime';
 
 interface ChatMessage {
   id: string;
@@ -46,11 +47,30 @@ export default function Chat() {
     }
   };
 
-  // Initial fetch + polling
+  // Initial fetch + realtime subscription
   useEffect(() => {
     fetchChat();
-    const interval = setInterval(fetchChat, 3000); // Poll every 3s
-    return () => clearInterval(interval);
+
+    // Subscribe to real-time chat messages
+    const unsubscribe = subscribeToChat((msg: ChatPayload) => {
+      const newMessage: ChatMessage = {
+        id: msg.id,
+        sender_type: msg.sender_type as 'agent' | 'human' | 'system',
+        sender_name: msg.sender_name,
+        content: msg.content,
+        type: msg.type,
+        created_at: msg.created_at,
+      };
+      setMessages(prev => [...prev, newMessage]);
+    });
+
+    // Fallback polling every 30s
+    const interval = setInterval(fetchChat, 30000);
+
+    return () => {
+      unsubscribe();
+      clearInterval(interval);
+    };
   }, []);
 
   // Scroll when messages update

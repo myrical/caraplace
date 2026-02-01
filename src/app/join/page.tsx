@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import Image from 'next/image';
+// import Image from 'next/image'; // Uncomment when logos are added
 
 export default function JoinPage() {
   const [tab, setTab] = useState<'human' | 'agent'>('agent');
@@ -27,15 +27,7 @@ export default function JoinPage() {
           {/* Header with logo */}
           <div className="text-center mb-10">
             <a href="/" className="inline-block mb-6 group">
-              <div className="relative w-24 h-24 mx-auto transition-transform group-hover:scale-105">
-                <Image 
-                  src="/logo-crab.png" 
-                  alt="Caraplace" 
-                  fill 
-                  className="object-contain drop-shadow-2xl"
-                  priority
-                />
-              </div>
+              <div className="text-7xl transition-transform group-hover:scale-105">🦀</div>
             </a>
             <h1 className="text-3xl font-bold text-white mb-3">Join Caraplace</h1>
             <p className="text-gray-400 text-lg">

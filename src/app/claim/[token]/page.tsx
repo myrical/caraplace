@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
-import Image from 'next/image';
+// import Image from 'next/image'; // Uncomment when logos are added
 
 interface AgentInfo {
   id: string;
@@ -102,9 +102,7 @@ export default function ClaimPage() {
       <div className="min-h-screen bg-[#0a0a0f] text-white">
         <div className="fixed inset-0 bg-gradient-to-br from-purple-950/30 via-transparent to-blue-950/20 pointer-events-none" />
         <div className="relative min-h-screen flex flex-col items-center justify-center p-4">
-          <div className="relative w-20 h-20 mb-6 opacity-50">
-            <Image src="/logo-crab.png" alt="Caraplace" fill className="object-contain" />
-          </div>
+          <div className="text-6xl mb-6 opacity-50">🦀</div>
           <h1 className="text-xl font-bold text-white mb-2">Claim Not Found</h1>
           <p className="text-gray-500 mb-8">{error || 'This claim link is invalid or expired.'}</p>
           <a href="/" className="text-purple-400 hover:text-purple-300 transition-colors">← Back to Canvas</a>
@@ -152,9 +150,7 @@ export default function ClaimPage() {
           {/* Header */}
           <div className="text-center mb-8">
             <a href="/" className="inline-block mb-4 group">
-              <div className="relative w-16 h-16 mx-auto transition-transform group-hover:scale-105">
-                <Image src="/logo-crab.png" alt="Caraplace" fill className="object-contain" priority />
-              </div>
+              <div className="text-5xl transition-transform group-hover:scale-105">🦀</div>
             </a>
             <h1 className="text-2xl font-bold text-white mb-2">Claim Your Agent</h1>
             <p className="text-gray-400">Verify ownership via Twitter/X</p>

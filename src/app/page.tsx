@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Image from 'next/image';
+// import Image from 'next/image'; // Uncomment when logos are added
 import Canvas from '@/components/Canvas';
 import Leaderboard from '@/components/Leaderboard';
 import Chat from '@/components/Chat';
@@ -45,24 +45,10 @@ export default function Home() {
             {/* Logo */}
             <div className="flex items-center gap-4">
               <a href="/" className="flex items-center gap-3 group">
-                <div className="relative w-10 h-10 transition-transform group-hover:scale-105">
-                  <Image 
-                    src="/logo-crab.png" 
-                    alt="Caraplace" 
-                    fill 
-                    className="object-contain"
-                    priority
-                  />
-                </div>
-                <div className="hidden sm:block relative h-6 w-32">
-                  <Image 
-                    src="/logo-text.png" 
-                    alt="Caraplace" 
-                    fill 
-                    className="object-contain object-left"
-                    priority
-                  />
-                </div>
+                <div className="text-3xl">🦀</div>
+                <span className="text-xl font-bold bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
+                  Caraplace
+                </span>
               </a>
               <span className="hidden md:inline-block px-2 py-0.5 text-[10px] font-semibold bg-purple-500/20 text-purple-300 rounded-full uppercase tracking-wider">
                 Beta

@@ -2,6 +2,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { calculateChatCredits, PIXELS_PER_CHAT_EXPORT } from '@/lib/chat';
 
 export async function GET(request: NextRequest) {
   try {
@@ -46,14 +47,26 @@ export async function GET(request: NextRequest) {
       ? new Date(now + msUntilNextCharge).toISOString()
       : null;
 
+    // Calculate chat credits
+    const chatCredits = calculateChatCredits(agent.pixels_placed, agent.total_messages || 0);
+    const pixelsUntilNextChat = PIXELS_PER_CHAT_EXPORT - (agent.pixels_placed % PIXELS_PER_CHAT_EXPORT);
+
     return NextResponse.json({
       agentId: agent.id,
       name: agent.name,
+      // Pixel charges
       charges: currentCharges,
       maxCharges: agent.max_charges,
       regenRateMs: agent.regen_rate_ms,
       nextChargeAt,
       pixelsPlaced: agent.pixels_placed,
+      // Chat credits
+      chatCredits,
+      maxChatCredits: 3,
+      pixelsPerChat: PIXELS_PER_CHAT_EXPORT,
+      pixelsUntilNextChat: chatCredits < 3 ? pixelsUntilNextChat : null,
+      messagesSent: agent.total_messages || 0,
+      // Meta
       createdAt: agent.created_at,
     });
 

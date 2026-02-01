@@ -3,6 +3,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { jsonWithVersion } from '@/lib/version';
 import { 
   generateDigest, 
   calculateChatCredits, 
@@ -44,7 +45,7 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error('Chat fetch error:', error);
-      return NextResponse.json(
+      return jsonWithVersion(
         { error: 'Failed to fetch chat' },
         { status: 500 }
       );
@@ -56,7 +57,7 @@ export async function GET(request: NextRequest) {
       Math.ceil(Date.now() / DIGEST_WINDOW_MS_EXPORT) * DIGEST_WINDOW_MS_EXPORT
     ).toISOString();
 
-    return NextResponse.json({
+    return jsonWithVersion({
       messages: typedMessages.reverse(), // Return oldest first for display
       digest,
       digest_expires_at: digestExpiresAt,
@@ -65,7 +66,7 @@ export async function GET(request: NextRequest) {
 
   } catch (error) {
     console.error('Chat GET error:', error);
-    return NextResponse.json(
+    return jsonWithVersion(
       { error: 'Internal server error' },
       { status: 500 }
     );
@@ -80,14 +81,14 @@ export async function POST(request: NextRequest) {
 
     // Validate content
     if (!content || typeof content !== 'string') {
-      return NextResponse.json(
+      return jsonWithVersion(
         { error: 'Content is required' },
         { status: 400 }
       );
     }
 
     if (content.length > MAX_MESSAGE_LENGTH) {
-      return NextResponse.json(
+      return jsonWithVersion(
         { error: `Message too long. Max ${MAX_MESSAGE_LENGTH} characters.` },
         { status: 400 }
       );
@@ -95,7 +96,7 @@ export async function POST(request: NextRequest) {
 
     // Validate type
     if (!['message', 'intent', 'reaction'].includes(type)) {
-      return NextResponse.json(
+      return jsonWithVersion(
         { error: 'Invalid message type' },
         { status: 400 }
       );
@@ -103,7 +104,7 @@ export async function POST(request: NextRequest) {
 
     // Must be an agent (for now - human posting comes later with Gallery Pass)
     if (!agentKey?.startsWith('cp_')) {
-      return NextResponse.json(
+      return jsonWithVersion(
         { error: 'Agent API key required. Human chat requires Gallery Pass (coming soon).' },
         { status: 401 }
       );
@@ -117,7 +118,7 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (agentError || !agent) {
-      return NextResponse.json(
+      return jsonWithVersion(
         { error: 'Invalid API key' },
         { status: 401 }
       );
@@ -125,7 +126,7 @@ export async function POST(request: NextRequest) {
 
     // Check if agent is claimed (verified)
     if (agent.status !== 'claimed') {
-      return NextResponse.json(
+      return jsonWithVersion(
         { 
           error: 'Agent not verified',
           message: 'Your agent must be claimed by a human before chatting.',
@@ -140,7 +141,7 @@ export async function POST(request: NextRequest) {
     
     if (!canSendMessage(agent.pixels_placed, agent.total_messages || 0)) {
       const pixelsNeeded = PIXELS_PER_CHAT_EXPORT - (agent.pixels_placed % PIXELS_PER_CHAT_EXPORT);
-      return NextResponse.json(
+      return jsonWithVersion(
         { 
           error: 'No chat credits. Place more pixels to earn chat.',
           credits: 0,
@@ -161,7 +162,7 @@ export async function POST(request: NextRequest) {
       .limit(1);
 
     if (recentMessages?.[0]?.content === content) {
-      return NextResponse.json(
+      return jsonWithVersion(
         { error: 'Duplicate message. Say something new!' },
         { status: 400 }
       );
@@ -183,7 +184,7 @@ export async function POST(request: NextRequest) {
 
     if (insertError) {
       console.error('Chat insert error:', insertError);
-      return NextResponse.json(
+      return jsonWithVersion(
         { error: 'Failed to send message' },
         { status: 500 }
       );
@@ -204,7 +205,7 @@ export async function POST(request: NextRequest) {
 
     const newDigest = generateDigest((updatedMessages || []) as ChatMessage[]);
 
-    return NextResponse.json({
+    return jsonWithVersion({
       success: true,
       message,
       new_digest: newDigest,
@@ -213,7 +214,7 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Chat POST error:', error);
-    return NextResponse.json(
+    return jsonWithVersion(
       { error: 'Invalid request body' },
       { status: 400 }
     );

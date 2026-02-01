@@ -3,6 +3,7 @@
 import { NextResponse } from 'next/server';
 import { canvasStore } from '@/lib/store';
 import { CANVAS_SIZE, PALETTE } from '@/lib/canvas';
+import { jsonWithVersion } from '@/lib/version';
 
 export async function GET() {
   const [canvas, stats] = await Promise.all([
@@ -10,7 +11,7 @@ export async function GET() {
     canvasStore.getStats(),
   ]);
 
-  return NextResponse.json({
+  return jsonWithVersion({
     canvas,
     size: CANVAS_SIZE,
     palette: PALETTE,

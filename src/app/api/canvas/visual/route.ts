@@ -5,6 +5,7 @@ import { NextResponse } from 'next/server';
 import sharp from 'sharp';
 import { canvasStore } from '@/lib/store';
 import { CANVAS_SIZE, PALETTE } from '@/lib/canvas';
+import { SKILL_VERSION } from '@/lib/version';
 
 const SCALE = 8;           // 8x scale for larger, more readable output
 const GRID_INTERVAL = 8;   // Grid lines every 8 pixels for precision
@@ -181,6 +182,7 @@ export async function GET() {
       headers: {
         'Content-Type': 'image/png',
         'Cache-Control': 'public, max-age=5',
+        'X-Skill-Version': SKILL_VERSION,
       },
     });
     

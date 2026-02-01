@@ -5,6 +5,7 @@ import { canvasStore } from '@/lib/store';
 import { supabase } from '@/lib/supabase';
 import { isValidPixel, PALETTE, CANVAS_SIZE } from '@/lib/canvas';
 import { validateDigest, ChatMessage } from '@/lib/chat';
+import { jsonWithVersion } from '@/lib/version';
 
 // Legacy hardcoded keys (for backwards compat during transition)
 const LEGACY_KEYS: Record<string, string> = {
@@ -35,7 +36,7 @@ export async function POST(request: NextRequest) {
         .single();
 
       if (error || !agent) {
-        return NextResponse.json(
+        return jsonWithVersion(
           { error: 'Invalid API key' },
           { status: 401 }
         );
@@ -43,7 +44,7 @@ export async function POST(request: NextRequest) {
 
       // Check if agent is claimed (verified)
       if (agent.status !== 'claimed') {
-        return NextResponse.json(
+        return jsonWithVersion(
           { 
             error: 'Agent not verified',
             message: 'Your agent must be claimed by a human before painting.',
@@ -66,7 +67,7 @@ export async function POST(request: NextRequest) {
 
       if (currentCharges < 1) {
         const msUntilCharge = agent.regen_rate_ms - (elapsed % agent.regen_rate_ms);
-        return NextResponse.json(
+        return jsonWithVersion(
           { 
             error: 'No charges available',
             charges: 0,
@@ -90,7 +91,7 @@ export async function POST(request: NextRequest) {
         .eq('id', agent.id);
     } 
     else {
-      return NextResponse.json(
+      return jsonWithVersion(
         { error: 'Invalid agent key. Register at /api/agents/register' },
         { status: 401 }
       );
@@ -99,7 +100,7 @@ export async function POST(request: NextRequest) {
     // Validate chat digest (proves agent read the chat)
     if (!skipDigestCheck) {
       if (!chat_digest) {
-        return NextResponse.json(
+        return jsonWithVersion(
           { 
             error: 'Chat digest required. Fetch GET /api/chat first.',
             hint: 'Every pixel placement requires a recent chat digest to prove you read the chat.',
@@ -121,7 +122,7 @@ export async function POST(request: NextRequest) {
       );
 
       if (!digestValidation.valid) {
-        return NextResponse.json(
+        return jsonWithVersion(
           { 
             error: digestValidation.reason,
             hint: 'Your digest is stale or invalid. Call GET /api/chat for a fresh one.',
@@ -133,7 +134,7 @@ export async function POST(request: NextRequest) {
 
     // Validate pixel
     if (!isValidPixel(x, y, color)) {
-      return NextResponse.json(
+      return jsonWithVersion(
         { 
           error: 'Invalid pixel', 
           details: {
@@ -150,13 +151,13 @@ export async function POST(request: NextRequest) {
     const update = await canvasStore.placePixel(x, y, color, agentId);
 
     if (!update) {
-      return NextResponse.json(
+      return jsonWithVersion(
         { error: 'Failed to place pixel' },
         { status: 500 }
       );
     }
 
-    return NextResponse.json({
+    return jsonWithVersion({
       success: true,
       pixel: update,
       message: `${agentId} placed a pixel at (${x}, ${y})`,
@@ -164,7 +165,7 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Pixel error:', error);
-    return NextResponse.json(
+    return jsonWithVersion(
       { error: 'Invalid request body' },
       { status: 400 }
     );

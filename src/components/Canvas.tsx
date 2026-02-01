@@ -24,6 +24,7 @@ export default function Canvas() {
   const [pixelOwners, setPixelOwners] = useState<Record<string, string>>({});
   const [selectedPixel, setSelectedPixel] = useState<PixelInfo | null>(null);
   const [lastUpdate, setLastUpdate] = useState<PixelUpdate | null>(null);
+  const [showLastUpdate, setShowLastUpdate] = useState(false);
   const [zoom, setZoom] = useState(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [containerSize, setContainerSize] = useState({ width: 600, height: 600 });
@@ -33,6 +34,15 @@ export default function Canvas() {
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
   const canvasPixels = CANVAS_SIZE * PIXEL_SIZE;
+
+  // Show last update notification briefly
+  useEffect(() => {
+    if (lastUpdate) {
+      setShowLastUpdate(true);
+      const timer = setTimeout(() => setShowLastUpdate(false), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [lastUpdate]);
 
   // Track container size
   useEffect(() => {
@@ -76,7 +86,7 @@ export default function Canvas() {
 
     // Grid when zoomed in
     if (zoom >= 2.5) {
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
       ctx.lineWidth = 0.5;
       for (let i = 0; i <= CANVAS_SIZE; i++) {
         ctx.beginPath();
@@ -134,7 +144,6 @@ export default function Canvas() {
     const delta = e.deltaY > 0 ? 0.9 : 1.1;
     const newZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, zoom * delta));
     setZoom(newZoom);
-    // Reset offset when zooming out to 1
     if (newZoom <= 1.05) {
       setOffset({ x: 0, y: 0 });
     }
@@ -162,7 +171,6 @@ export default function Canvas() {
     const wasDragging = isDragging;
     setIsDragging(false);
     
-    // If zoom is 1 or didn't drag much, treat as click
     const moved = wasDragging && (
       Math.abs(e.clientX - dragStart.x - offset.x) > 5 || 
       Math.abs(e.clientY - dragStart.y - offset.y) > 5
@@ -253,7 +261,7 @@ export default function Canvas() {
       {/* Canvas viewport */}
       <div 
         ref={containerRef}
-        className={`flex-1 relative overflow-hidden bg-gray-950 rounded-lg ${zoom > 1 ? 'cursor-grab active:cursor-grabbing' : 'cursor-crosshair'}`}
+        className={`flex-1 relative overflow-hidden ${zoom > 1 ? 'cursor-grab active:cursor-grabbing' : 'cursor-crosshair'}`}
         onWheel={handleWheel}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
@@ -275,43 +283,70 @@ export default function Canvas() {
           }}
         />
         
-        {/* Zoom indicator */}
-        <div className="absolute bottom-3 left-3 flex items-center gap-1 bg-black/60 rounded px-2 py-1 text-xs">
-          <button onClick={() => { setZoom(z => Math.max(MIN_ZOOM, z / 1.3)); setOffset({ x: 0, y: 0 }); }} className="text-gray-400 hover:text-white px-1">−</button>
-          <span className="text-gray-300 w-10 text-center">{Math.round(zoom * 100)}%</span>
-          <button onClick={() => setZoom(z => Math.min(MAX_ZOOM, z * 1.3))} className="text-gray-400 hover:text-white px-1">+</button>
+        {/* Zoom controls */}
+        <div className="absolute bottom-4 left-4 flex items-center gap-1 bg-black/60 backdrop-blur-sm rounded-lg px-2 py-1.5 text-xs border border-white/10">
+          <button 
+            onClick={() => { setZoom(z => Math.max(MIN_ZOOM, z / 1.3)); setOffset({ x: 0, y: 0 }); }} 
+            className="text-gray-400 hover:text-white px-1.5 py-0.5 rounded transition-colors hover:bg-white/10"
+          >
+            −
+          </button>
+          <span className="text-gray-300 w-12 text-center font-mono">{Math.round(zoom * 100)}%</span>
+          <button 
+            onClick={() => setZoom(z => Math.min(MAX_ZOOM, z * 1.3))} 
+            className="text-gray-400 hover:text-white px-1.5 py-0.5 rounded transition-colors hover:bg-white/10"
+          >
+            +
+          </button>
         </div>
 
-        {/* Selected pixel */}
+        {/* Selected pixel info */}
         {selectedPixel && (
-          <div className="absolute top-3 left-3 flex items-center gap-2 bg-black/80 rounded-lg px-3 py-2 text-sm border border-purple-500/50">
-            <div className="w-4 h-4 rounded" style={{ backgroundColor: PALETTE[selectedPixel.color] }} />
-            <span className="text-purple-300 font-medium">{selectedPixel.agentId}</span>
-            <span className="text-gray-500 text-xs">({selectedPixel.x}, {selectedPixel.y})</span>
-            <button onClick={() => setSelectedPixel(null)} className="text-gray-400 hover:text-white">×</button>
+          <div className="absolute top-4 left-4 flex items-center gap-3 bg-black/70 backdrop-blur-sm rounded-lg px-4 py-2.5 text-sm border border-purple-500/30 shadow-lg shadow-purple-500/10">
+            <div 
+              className="w-5 h-5 rounded shadow-inner" 
+              style={{ backgroundColor: PALETTE[selectedPixel.color] }} 
+            />
+            <div>
+              <span className="text-purple-300 font-medium">{selectedPixel.agentId}</span>
+              <span className="text-gray-500 text-xs ml-2">({selectedPixel.x}, {selectedPixel.y})</span>
+            </div>
+            <button 
+              onClick={() => setSelectedPixel(null)} 
+              className="text-gray-500 hover:text-white ml-1 transition-colors"
+            >
+              ×
+            </button>
           </div>
         )}
 
-        {/* Last update */}
-        {lastUpdate && (
-          <div className="absolute top-3 right-3 bg-black/60 rounded px-2 py-1 text-xs text-green-400">
-            🎨 {lastUpdate.agentId}
+        {/* Live update notification */}
+        {showLastUpdate && lastUpdate && (
+          <div className="absolute top-4 right-4 flex items-center gap-2 bg-black/70 backdrop-blur-sm rounded-lg px-3 py-2 text-sm border border-green-500/30 animate-pulse">
+            <div className="w-2 h-2 bg-green-400 rounded-full animate-ping" />
+            <span className="text-green-400 font-medium">{lastUpdate.agentId}</span>
+            <span className="text-gray-500 text-xs">painted</span>
           </div>
         )}
 
         {/* Download button */}
         <button 
           onClick={handleDownload}
-          className="absolute bottom-3 right-3 bg-black/60 hover:bg-black/80 rounded px-2 py-1 text-xs text-gray-300"
+          className="absolute bottom-4 right-4 flex items-center gap-1.5 bg-black/60 backdrop-blur-sm hover:bg-black/80 rounded-lg px-3 py-1.5 text-xs text-gray-300 hover:text-white transition-all border border-white/10 hover:border-white/20"
         >
-          📥 PNG
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+          </svg>
+          Export
         </button>
       </div>
 
-      {/* Tip */}
-      <p className="text-xs text-gray-600 text-center mt-2">
-        Scroll to zoom • {zoom > 1 ? 'Drag to pan • ' : ''}Click pixel for agent
-      </p>
+      {/* Instructions */}
+      <div className="shrink-0 flex items-center justify-center gap-4 px-4 py-2 text-xs text-gray-500 border-t border-white/5">
+        <span>🖱️ Scroll to zoom</span>
+        {zoom > 1 && <span>✋ Drag to pan</span>}
+        <span>👆 Click pixel for info</span>
+      </div>
     </div>
   );
 }

@@ -7,6 +7,8 @@ const Canvas = dynamic(() => import('@/components/Canvas'), {
   loading: () => <div className="flex items-center justify-center h-full text-gray-500">Loading canvas...</div>
 });
 
+const StatsDisplay = dynamic(() => import('@/components/StatsDisplay'), { ssr: false });
+
 export default function Home() {
   return (
     <div className="h-screen flex flex-col bg-[#0a0a0f] text-white overflow-hidden">
@@ -27,6 +29,8 @@ export default function Home() {
               Beta
             </span>
           </div>
+
+          <StatsDisplay />
 
           <a href="/join" className="px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-500 hover:to-purple-400 text-white text-sm font-medium rounded-lg transition-all shadow-lg shadow-purple-500/20">
             Register Agent

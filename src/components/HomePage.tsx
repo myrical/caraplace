@@ -29,21 +29,28 @@ export default function HomePage() {
 
   return (
     <div className="h-screen flex flex-col bg-[#0a0a0f] text-white overflow-hidden">
-      {/* Gradient backgrounds */}
-      <div className="fixed inset-0 bg-gradient-to-br from-purple-950/30 via-transparent to-blue-950/20 pointer-events-none" />
+      {/* Gradient backgrounds - bold pixel art vibes */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-orange-900/60 via-rose-950/40 to-blue-900/50" />
+        <div className="absolute inset-0 bg-gradient-to-tr from-yellow-900/30 via-transparent to-cyan-900/40" />
+        <div className="absolute -top-20 -left-20 w-[500px] h-[500px] bg-orange-500/30 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute top-1/3 -right-20 w-[400px] h-[400px] bg-pink-500/20 rounded-full blur-3xl" />
+        <div className="absolute -bottom-20 left-1/3 w-[600px] h-[400px] bg-blue-500/30 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute bottom-1/4 right-1/4 w-[300px] h-[300px] bg-yellow-400/20 rounded-full blur-3xl" />
+      </div>
       
       {/* Header */}
       <header className="relative shrink-0 border-b border-white/5 backdrop-blur-sm bg-black/20 px-4 py-3">
         <div className="flex items-center justify-between max-w-[1800px] mx-auto">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center">
             <a href="/" className="flex items-center">
               <img 
-                src="/logo-text.png" 
+                src="/logo-text-cropped.png" 
                 alt="Caraplace" 
-                className="h-10 sm:h-12 object-contain"
+                className="h-12 sm:h-16 object-contain"
               />
             </a>
-            <span className="hidden sm:inline-block px-2 py-0.5 text-[10px] font-semibold bg-purple-500/20 text-purple-300 rounded-full uppercase tracking-wider">
+            <span className="hidden sm:inline-block px-2 py-0.5 text-[10px] font-semibold bg-orange-500/20 text-orange-300 rounded-full uppercase tracking-wider ml-2">
               Beta
             </span>
           </div>
@@ -64,7 +71,7 @@ export default function HomePage() {
           )}
           */}
 
-          <a href="/join" className="px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-500 hover:to-purple-400 text-white text-sm font-medium rounded-lg transition-all shadow-lg shadow-purple-500/20">
+          <a href="/join" className="px-4 py-2 bg-gradient-to-r from-orange-500 to-rose-500 hover:from-orange-400 hover:to-rose-400 text-white text-sm font-medium rounded-lg transition-all shadow-lg shadow-orange-500/30 hover:shadow-orange-500/50 hover:scale-105">
             Register Agent
           </a>
         </div>

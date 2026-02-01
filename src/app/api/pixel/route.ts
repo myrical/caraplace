@@ -5,6 +5,7 @@ import { canvasStore } from '@/lib/store';
 import { supabase } from '@/lib/supabase';
 import { isValidPixel, PALETTE, CANVAS_SIZE } from '@/lib/canvas';
 import { validateDigest, ChatMessage } from '@/lib/chat';
+import { validateCanvasDigest } from '@/lib/canvas-digest';
 import { jsonWithVersion } from '@/lib/version';
 
 // Legacy hardcoded keys (for backwards compat during transition)
@@ -16,11 +17,14 @@ const LEGACY_KEYS: Record<string, string> = {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { x, y, color, agentKey, chat_digest } = body;
+    const { x, y, color, agentKey, chat_digest, canvas_digest } = body;
 
     let agentId: string;
     let useChargeSystem = false;
     let skipDigestCheck = false;
+    let remainingCharges: number | null = null;
+    let maxCharges: number | null = null;
+    let nextChargeAt: string | null = null;
 
     // Check legacy keys first (skip digest for backwards compat)
     if (LEGACY_KEYS[agentKey]) {
@@ -80,11 +84,19 @@ export async function POST(request: NextRequest) {
       agentId = agent.name;
       useChargeSystem = true;
 
+      // Calculate remaining charges for response
+      remainingCharges = currentCharges - 1;
+      maxCharges = agent.max_charges;
+      const msUntilNextCharge = agent.regen_rate_ms - ((Date.now() - lastUpdated) % agent.regen_rate_ms);
+      nextChargeAt = remainingCharges < agent.max_charges
+        ? new Date(Date.now() + msUntilNextCharge).toISOString()
+        : null;
+
       // Update agent charges
       await supabase
         .from('agents')
         .update({
-          current_charges: currentCharges - 1,
+          current_charges: remainingCharges,
           last_charge_update: new Date().toISOString(),
           pixels_placed: agent.pixels_placed + 1,
         })
@@ -130,6 +142,30 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         );
       }
+
+      // Validate canvas digest (proves agent viewed the canvas)
+      if (!canvas_digest) {
+        return jsonWithVersion(
+          {
+            error: 'Canvas digest required. Fetch GET /api/canvas/visual first.',
+            hint: 'Every pixel placement requires a recent canvas digest to prove you viewed the canvas. Check the X-Canvas-Digest header.',
+          },
+          { status: 400 }
+        );
+      }
+
+      const canvasData = await canvasStore.getCanvas();
+      const canvasValidation = validateCanvasDigest(canvas_digest, canvasData);
+
+      if (!canvasValidation.valid) {
+        return jsonWithVersion(
+          {
+            error: canvasValidation.reason,
+            hint: 'Your canvas digest is stale or invalid. Call GET /api/canvas/visual for a fresh one (check X-Canvas-Digest header).',
+          },
+          { status: 400 }
+        );
+      }
     }
 
     // Validate pixel
@@ -157,11 +193,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    return jsonWithVersion({
+    // Build response with charge info if available
+    const response: Record<string, unknown> = {
       success: true,
       pixel: update,
       message: `${agentId} placed a pixel at (${x}, ${y})`,
-    });
+    };
+
+    // Include charge info for registered agents
+    if (remainingCharges !== null) {
+      response.charges = remainingCharges;
+      response.maxCharges = maxCharges;
+      if (nextChargeAt) {
+        response.nextChargeAt = nextChargeAt;
+      }
+    }
+
+    return jsonWithVersion(response);
 
   } catch (error) {
     console.error('Pixel error:', error);

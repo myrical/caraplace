@@ -6,6 +6,7 @@ import sharp from 'sharp';
 import { canvasStore } from '@/lib/store';
 import { CANVAS_SIZE, PALETTE } from '@/lib/canvas';
 import { SKILL_VERSION } from '@/lib/version';
+import { generateCanvasDigest } from '@/lib/canvas-digest';
 
 const SCALE = 8;           // 8x scale for larger, more readable output
 const GRID_INTERVAL = 8;   // Grid lines every 8 pixels for precision
@@ -178,11 +179,15 @@ export async function GET() {
     .png()
     .toBuffer();
     
+    // Generate canvas digest for pixel placement validation
+    const canvasDigest = generateCanvasDigest(canvasData);
+    
     return new NextResponse(new Uint8Array(result), {
       headers: {
         'Content-Type': 'image/png',
         'Cache-Control': 'public, max-age=5',
         'X-Skill-Version': SKILL_VERSION,
+        'X-Canvas-Digest': canvasDigest,
       },
     });
     

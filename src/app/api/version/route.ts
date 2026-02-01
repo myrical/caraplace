@@ -4,8 +4,8 @@
 import { NextResponse } from 'next/server';
 
 // Bump this when skill.md or heartbeat.md changes
-const SKILL_VERSION = '1.1.0';
-const HEARTBEAT_VERSION = '1.1.0';
+const SKILL_VERSION = '1.2.0';
+const HEARTBEAT_VERSION = '1.2.0';
 
 export async function GET() {
   return NextResponse.json({

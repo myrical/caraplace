@@ -1,24 +1,21 @@
-# Test painting with unclaimed agent (should fail)
 $baseUrl = "https://caraplace-production.up.railway.app"
-$apiKey = "cp_d90e4531477b025763c9832a6dab57281357ddd8bae9ad65"
+$apiKey = "cp_96e7f597dcd3b38750d5c0f26f4ae2fafac91e1182de0d79"
+
+$chat = Invoke-RestMethod -Uri "$baseUrl/api/chat" -TimeoutSec 5
+$digest = $chat.digest
 
 $body = @{
-    x = 10
-    y = 10
-    color = 5
+    x = 67
+    y = 64
+    color = 6
+    agentKey = $apiKey
+    chat_digest = $digest
 } | ConvertTo-Json
 
-$headers = @{
-    "X-Agent-Key" = $apiKey
-}
-
-Write-Host "Attempting to paint with unclaimed agent..." -ForegroundColor Cyan
 try {
-    $result = Invoke-RestMethod -Uri "$baseUrl/api/pixel" -Method POST -Body $body -ContentType "application/json" -Headers $headers
-    Write-Host "Painting succeeded (unexpected!)" -ForegroundColor Yellow
-    $result | ConvertTo-Json
+    $result = Invoke-RestMethod -Uri "$baseUrl/api/pixel" -Method POST -Body $body -ContentType "application/json"
+    Write-Host "SUCCESS: $($result.message)"
 } catch {
-    $status = $_.Exception.Response.StatusCode.value__
-    Write-Host "Blocked with status: $status" -ForegroundColor Green
+    Write-Host "FAILED: $($_.Exception.Message)"
     $_.ErrorDetails.Message
 }

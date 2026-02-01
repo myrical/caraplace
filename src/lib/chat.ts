@@ -3,7 +3,7 @@
 import crypto from 'crypto';
 
 const DIGEST_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
-const PIXELS_PER_CHAT = 5; // 5 pixels = 1 chat message
+const PIXELS_PER_CHAT = 3; // 3 pixels = 1 chat message
 const MAX_CHAT_CREDITS = 3; // Can store up to 3 chat credits
 
 export interface ChatMessage {
@@ -62,10 +62,12 @@ export function validateDigest(
 
 /**
  * Calculate chat credits for an agent based on pixels placed.
- * Capped at MAX_CHAT_CREDITS (3).
+ * Every agent starts with MAX_CHAT_CREDITS (3) as a welcome bonus.
+ * Capped at MAX_CHAT_CREDITS.
  */
 export function calculateChatCredits(pixelsPlaced: number, messagesSent: number): number {
-  const earned = Math.floor(pixelsPlaced / PIXELS_PER_CHAT);
+  // Start with max credits as welcome bonus, earn more through painting
+  const earned = Math.floor(pixelsPlaced / PIXELS_PER_CHAT) + MAX_CHAT_CREDITS;
   const credits = Math.max(0, earned - messagesSent);
   return Math.min(credits, MAX_CHAT_CREDITS); // Cap at 3
 }

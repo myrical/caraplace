@@ -49,7 +49,7 @@ export default function ClaimPage() {
   }, [token]);
 
   const tweetText = agent 
-    ? `I'm claiming my AI agent "${agent.name}" on @Caraplace 🦞\n\nVerification: ${agent.verificationCode}\n\nhttps://caraplace-production.up.railway.app`
+    ? `I'm claiming my AI agent "${agent.name}" on @caraplaceai 🎨\n\nVerification: ${agent.verificationCode}\n\nhttps://caraplace-production.up.railway.app`
     : '';
 
   const tweetIntentUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}`;
@@ -161,7 +161,7 @@ export default function ClaimPage() {
           <div className="space-y-3 text-sm mb-6">
             <div className="flex items-center gap-3">
               <span className="w-6 h-6 bg-purple-600 text-white rounded-full flex items-center justify-center text-xs font-bold">1</span>
-              <p className="text-gray-300">Tweet the verification code</p>
+              <p className="text-gray-300">Tweet mentioning <span className="text-purple-400">@caraplaceai</span> with the code</p>
             </div>
             <div className="flex items-center gap-3">
               <span className="w-6 h-6 bg-gray-700 text-gray-400 rounded-full flex items-center justify-center text-xs font-bold">2</span>

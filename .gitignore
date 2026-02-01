@@ -36,6 +36,14 @@ yarn-error.log*
 # vercel
 .vercel
 
+# local dev scripts (may contain secrets)
+check-agents.js
+watch-agents.ps1
+monitor.ps1
+paint-pixel.ps1
+register-proxy.ps1
+test-*.ps1
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

@@ -2,9 +2,14 @@
 const { createClient } = require('@supabase/supabase-js');
 
 const supabase = createClient(
-  'https://pcohqtqguwgqwtrcykga.supabase.co',
-  process.env.SUPABASE_SERVICE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBjb2hxdHFndXdncXd0cmN5a2dhIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2OTgzMDg5NCwiZXhwIjoyMDg1NDA2ODk0fQ.5BqtEqLl3Uf3a8lhpZGf9H9aX5uqnsKHhwrG6lXeP1o'
+  process.env.SUPABASE_URL || 'https://pcohqtqguwgqwtrcykga.supabase.co',
+  process.env.SUPABASE_SERVICE_KEY // Required - set in environment
 );
+
+if (!process.env.SUPABASE_SERVICE_KEY) {
+  console.error('ERROR: SUPABASE_SERVICE_KEY environment variable required');
+  process.exit(1);
+}
 
 async function reset() {
   console.log('Resetting Caraplace...\n');

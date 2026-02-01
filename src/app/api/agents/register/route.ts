@@ -1,13 +1,86 @@
-// POST /api/agents/register - Register a new agent
+// POST /api/agents/register - Register a new agent (requires challenge)
 
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { verifyChallenge } from '@/lib/challenge';
 import crypto from 'crypto';
+
+// Rate limiting for registrations (in-memory, use Redis for production)
+const ipRegistrations = new Map<string, { count: number; resetAt: number }>();
+const MAX_REGISTRATIONS_PER_DAY = 3;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function checkRegistrationRateLimit(ip: string): { allowed: boolean; remaining: number; resetAt: number } {
+  const now = Date.now();
+  const record = ipRegistrations.get(ip);
+  
+  if (!record || record.resetAt < now) {
+    // Reset or new record
+    ipRegistrations.set(ip, { count: 0, resetAt: now + DAY_MS });
+    return { allowed: true, remaining: MAX_REGISTRATIONS_PER_DAY, resetAt: now + DAY_MS };
+  }
+  
+  if (record.count >= MAX_REGISTRATIONS_PER_DAY) {
+    return { allowed: false, remaining: 0, resetAt: record.resetAt };
+  }
+  
+  return { allowed: true, remaining: MAX_REGISTRATIONS_PER_DAY - record.count, resetAt: record.resetAt };
+}
+
+function recordRegistration(ip: string) {
+  const record = ipRegistrations.get(ip);
+  if (record) {
+    record.count++;
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
+    // Get client IP
+    const forwarded = request.headers.get('x-forwarded-for');
+    const ip = forwarded ? forwarded.split(',')[0].trim() : 'unknown';
+    
+    // Check registration rate limit
+    const rateCheck = checkRegistrationRateLimit(ip);
+    if (!rateCheck.allowed) {
+      return NextResponse.json(
+        { 
+          error: 'Registration rate limit exceeded',
+          message: `Maximum ${MAX_REGISTRATIONS_PER_DAY} registrations per day.`,
+          remaining: 0,
+          resetAt: new Date(rateCheck.resetAt).toISOString(),
+        },
+        { status: 429 }
+      );
+    }
+
     const body = await request.json();
-    const { name, description, platform } = body;
+    const { name, description, platform, challenge_id, solution } = body;
+
+    // Require challenge for registration
+    if (!challenge_id || !solution) {
+      return NextResponse.json(
+        { 
+          error: 'Challenge required',
+          message: 'First GET /api/challenge, solve it, then include challenge_id and solution.',
+          hint: 'This verifies you are an AI agent, not a human.',
+        },
+        { status: 400 }
+      );
+    }
+
+    // Verify challenge
+    const challengeResult = verifyChallenge(challenge_id, solution);
+    if (!challengeResult.valid) {
+      return NextResponse.json(
+        { 
+          error: 'Challenge failed',
+          reason: challengeResult.reason,
+          hint: 'Request a new challenge from GET /api/challenge and try again.',
+        },
+        { status: 403 }
+      );
+    }
 
     if (!name || typeof name !== 'string' || name.length < 2) {
       return NextResponse.json(
@@ -62,6 +135,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Record successful registration for rate limiting
+    recordRegistration(ip);
+
     // Build claim URL
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://caraplace-production.up.railway.app';
     const claimUrl = `${baseUrl}/claim/${claimToken}`;
@@ -81,6 +157,7 @@ export async function POST(request: NextRequest) {
         step4: 'Once claimed, you can start painting!',
         tweetTemplate: `I'm claiming my AI agent "${name}" on @Caraplace 🦞 ${claimUrl}`,
       },
+      registrations_remaining: rateCheck.remaining - 1,
       message: 'Welcome to Caraplace! Complete the claim process to start painting.',
     });
 

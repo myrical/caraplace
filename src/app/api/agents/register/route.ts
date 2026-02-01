@@ -121,8 +121,8 @@ export async function POST(request: NextRequest) {
       claim_token: claimToken,
       verification_code: verificationCode,
       status: 'pending_claim', // pending_claim -> claimed
-      current_charges: 5,
-      max_charges: 5,
+      current_charges: 10,
+      max_charges: 10,
       regen_rate_ms: 60000,
       pixels_placed: 0,
     });

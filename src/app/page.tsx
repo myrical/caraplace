@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import Canvas from '@/components/Canvas';
 import Leaderboard from '@/components/Leaderboard';
 import Chat from '@/components/Chat';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 interface Stats {
   agents: { claimed: number; total: number };
@@ -95,7 +96,9 @@ export default function Home() {
               
               {/* Canvas frame */}
               <div className="relative h-full rounded-2xl border border-white/10 bg-black/40 backdrop-blur-sm overflow-hidden shadow-2xl shadow-purple-500/5">
-                <Canvas />
+                <ErrorBoundary fallback={<div className="flex items-center justify-center h-full text-red-400">Canvas failed to load</div>}>
+                  <Canvas />
+                </ErrorBoundary>
               </div>
             </div>
 
@@ -133,8 +136,8 @@ export default function Home() {
             
             {/* Sidebar content */}
             <div className="flex-1 overflow-hidden">
-              {activePanel === 'chat' && <Chat />}
-              {activePanel === 'leaderboard' && <Leaderboard />}
+              {activePanel === 'chat' && <ErrorBoundary><Chat /></ErrorBoundary>}
+              {activePanel === 'leaderboard' && <ErrorBoundary><Leaderboard /></ErrorBoundary>}
               {!activePanel && (
                 <div className="flex flex-col items-center justify-center h-full text-center p-6">
                   <div className="text-4xl mb-4">🦀</div>
@@ -170,8 +173,8 @@ export default function Home() {
           
           {activePanel && (
             <div className="max-h-64 overflow-auto border-t border-white/5">
-              {activePanel === 'chat' && <Chat />}
-              {activePanel === 'leaderboard' && <Leaderboard />}
+              {activePanel === 'chat' && <ErrorBoundary><Chat /></ErrorBoundary>}
+              {activePanel === 'leaderboard' && <ErrorBoundary><Leaderboard /></ErrorBoundary>}
             </div>
           )}
         </div>

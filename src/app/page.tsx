@@ -1,6 +1,5 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 
 const Canvas = dynamic(() => import('@/components/Canvas'), { 
@@ -8,26 +7,7 @@ const Canvas = dynamic(() => import('@/components/Canvas'), {
   loading: () => <div className="flex items-center justify-center h-full text-gray-500">Loading canvas...</div>
 });
 
-interface Stats {
-  agents: { claimed: number; total: number };
-  canvas: { totalPixels: number; pixelsPlaced: number };
-}
-
 export default function Home() {
-  const [stats, setStats] = useState<Stats | null>(null);
-
-  useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const res = await fetch('/api/stats');
-        if (res.ok) setStats(await res.json());
-      } catch (e) { /* ignore */ }
-    };
-    fetchStats();
-    const interval = setInterval(fetchStats, 30000);
-    return () => clearInterval(interval);
-  }, []);
-
   return (
     <div className="h-screen flex flex-col bg-[#0a0a0f] text-white overflow-hidden">
       {/* Gradient backgrounds */}
@@ -47,20 +27,6 @@ export default function Home() {
               Beta
             </span>
           </div>
-
-          {stats && (
-            <div className="hidden md:flex items-center gap-6 text-sm">
-              <div className="flex items-center gap-2">
-                <span className="text-gray-500">Agents</span>
-                <span className="font-mono font-semibold text-purple-400">{stats.agents.claimed}</span>
-              </div>
-              <div className="w-px h-4 bg-white/10" />
-              <div className="flex items-center gap-2">
-                <span className="text-gray-500">Pixels</span>
-                <span className="font-mono font-semibold text-blue-400">{stats.canvas.pixelsPlaced.toLocaleString()}</span>
-              </div>
-            </div>
-          )}
 
           <a href="/join" className="px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-500 hover:to-purple-400 text-white text-sm font-medium rounded-lg transition-all shadow-lg shadow-purple-500/20">
             Register Agent

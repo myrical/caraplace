@@ -32,6 +32,10 @@ export default function Canvas() {
   // Drag state
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  
+  // Touch state for pinch-to-zoom
+  const [lastTouchDistance, setLastTouchDistance] = useState<number | null>(null);
+  const [lastTouchCenter, setLastTouchCenter] = useState<{ x: number; y: number } | null>(null);
 
   const canvasPixels = CANVAS_SIZE * PIXEL_SIZE;
 
@@ -200,6 +204,108 @@ export default function Canvas() {
     }
   };
 
+  // Touch handlers for mobile zoom/pan
+  const getTouchDistance = (touches: React.TouchList) => {
+    if (touches.length < 2) return null;
+    const dx = touches[0].clientX - touches[1].clientX;
+    const dy = touches[0].clientY - touches[1].clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  };
+
+  const getTouchCenter = (touches: React.TouchList) => {
+    if (touches.length < 2) {
+      return { x: touches[0].clientX, y: touches[0].clientY };
+    }
+    return {
+      x: (touches[0].clientX + touches[1].clientX) / 2,
+      y: (touches[0].clientY + touches[1].clientY) / 2,
+    };
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    e.preventDefault(); // Prevent page zoom
+    
+    if (e.touches.length === 2) {
+      // Pinch start
+      setLastTouchDistance(getTouchDistance(e.touches));
+      setLastTouchCenter(getTouchCenter(e.touches));
+    } else if (e.touches.length === 1 && zoom > 1) {
+      // Pan start
+      setIsDragging(true);
+      setDragStart({ x: e.touches[0].clientX - offset.x, y: e.touches[0].clientY - offset.y });
+    }
+  };
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    e.preventDefault(); // Prevent page scroll/zoom
+    
+    if (e.touches.length === 2 && lastTouchDistance !== null) {
+      // Pinch zoom
+      const newDistance = getTouchDistance(e.touches);
+      if (newDistance) {
+        const scale = newDistance / lastTouchDistance;
+        const newZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, zoom * scale));
+        setZoom(newZoom);
+        setLastTouchDistance(newDistance);
+        
+        // Also pan while pinching
+        const center = getTouchCenter(e.touches);
+        if (lastTouchCenter) {
+          const newOffset = {
+            x: offset.x + (center.x - lastTouchCenter.x),
+            y: offset.y + (center.y - lastTouchCenter.y),
+          };
+          setOffset(constrainOffset(newOffset));
+          setLastTouchCenter(center);
+        }
+      }
+    } else if (e.touches.length === 1 && isDragging && zoom > 1) {
+      // Pan
+      const newOffset = {
+        x: e.touches[0].clientX - dragStart.x,
+        y: e.touches[0].clientY - dragStart.y,
+      };
+      setOffset(constrainOffset(newOffset));
+    }
+  }, [zoom, offset, lastTouchDistance, lastTouchCenter, isDragging, dragStart, constrainOffset]);
+
+  const handleTouchEnd = async (e: React.TouchEvent) => {
+    const wasDragging = isDragging;
+    setIsDragging(false);
+    setLastTouchDistance(null);
+    setLastTouchCenter(null);
+    
+    // Reset offset if zoomed out
+    if (zoom <= 1.05) {
+      setOffset({ x: 0, y: 0 });
+    }
+    
+    // Handle tap to select pixel (only if not dragging and single touch ended)
+    if (!wasDragging && e.changedTouches.length === 1 && e.touches.length === 0) {
+      const touch = e.changedTouches[0];
+      const pixel = screenToPixel(touch.clientX, touch.clientY);
+      if (pixel) {
+        const key = `${pixel.x},${pixel.y}`;
+        let agentId = pixelOwners[key];
+        
+        if (!agentId) {
+          try {
+            const res = await fetch(`/api/pixel/info?x=${pixel.x}&y=${pixel.y}`);
+            if (res.ok) {
+              const data = await res.json();
+              if (data.agentId) {
+                agentId = data.agentId;
+                setPixelOwners(prev => ({ ...prev, [key]: agentId }));
+              }
+            }
+          } catch {}
+        }
+        
+        setSelectedPixel(agentId ? { x: pixel.x, y: pixel.y, color: canvas[pixel.y][pixel.x], agentId } : null);
+      }
+    }
+  };
+
   // Export
   const handleDownload = useCallback(() => {
     const exportCanvas = document.createElement('canvas');
@@ -262,11 +368,15 @@ export default function Canvas() {
       <div 
         ref={containerRef}
         className={`flex-1 relative overflow-hidden ${zoom > 1 ? 'cursor-grab active:cursor-grabbing' : 'cursor-crosshair'}`}
+        style={{ touchAction: 'none' }} // Prevent default touch gestures
         onWheel={handleWheel}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={() => setIsDragging(false)}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
       >
         <canvas
           ref={canvasRef}

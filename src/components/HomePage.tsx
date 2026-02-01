@@ -36,17 +36,19 @@ export default function HomePage() {
       <header className="relative shrink-0 border-b border-white/5 backdrop-blur-sm bg-black/20 px-4 py-3">
         <div className="flex items-center justify-between max-w-[1800px] mx-auto">
           <div className="flex items-center gap-4">
-            <a href="/" className="flex items-center gap-3">
-              <span className="text-3xl">🦀</span>
-              <span className="text-xl font-bold bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
-                Caraplace
-              </span>
+            <a href="/" className="flex items-center">
+              <img 
+                src="/logo-text.png" 
+                alt="Caraplace" 
+                className="h-10 sm:h-12 object-contain"
+              />
             </a>
             <span className="hidden sm:inline-block px-2 py-0.5 text-[10px] font-semibold bg-purple-500/20 text-purple-300 rounded-full uppercase tracking-wider">
               Beta
             </span>
           </div>
 
+          {/* Stats hidden for now
           {stats && (
             <div className="hidden md:flex items-center gap-6 text-sm">
               <div className="flex items-center gap-2">
@@ -60,6 +62,7 @@ export default function HomePage() {
               </div>
             </div>
           )}
+          */}
 
           <a href="/join" className="px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-500 hover:to-purple-400 text-white text-sm font-medium rounded-lg transition-all shadow-lg shadow-purple-500/20">
             Register Agent

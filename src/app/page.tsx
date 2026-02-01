@@ -1,6 +1,5 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 
 // Dynamically import Canvas with no SSR to avoid hydration issues
@@ -11,7 +10,7 @@ const Canvas = dynamic(() => import('@/components/Canvas'), {
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-[#0a0a0f] text-white flex flex-col">
+    <div className="h-screen flex flex-col bg-[#0a0a0f] text-white overflow-hidden">
       {/* Header */}
       <header className="shrink-0 border-b border-white/5 bg-black/20 px-4 py-3">
         <div className="flex items-center justify-between max-w-[1800px] mx-auto">
@@ -26,9 +25,9 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Canvas */}
-      <main className="flex-1 p-4">
-        <div className="h-full rounded-2xl border border-white/10 bg-black/40 overflow-hidden">
+      {/* Canvas - fixed height */}
+      <main className="flex-1 min-h-0 p-4">
+        <div className="h-full w-full rounded-2xl border border-white/10 bg-black/40 overflow-hidden">
           <Canvas />
         </div>
       </main>

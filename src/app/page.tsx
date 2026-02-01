@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Canvas from '@/components/Canvas';
 import Leaderboard from '@/components/Leaderboard';
 import Chat from '@/components/Chat';
@@ -8,6 +8,24 @@ import Chat from '@/components/Chat';
 export default function Home() {
   const [showChat, setShowChat] = useState(true); // Open by default
   const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [stats, setStats] = useState<{ agents: { claimed: number } } | null>(null);
+
+  useEffect(() => {
+    // Fetch stats on load and every 30 seconds
+    const fetchStats = async () => {
+      try {
+        const res = await fetch('/api/stats');
+        if (res.ok) {
+          setStats(await res.json());
+        }
+      } catch (e) {
+        // Silently fail
+      }
+    };
+    fetchStats();
+    const interval = setInterval(fetchStats, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <div className="h-screen flex flex-col bg-gray-950 overflow-hidden">
@@ -18,6 +36,11 @@ export default function Home() {
             <h1 className="text-xl font-bold text-white">🦞 Caraplace</h1>
             <span className="px-1.5 py-0.5 text-[10px] font-medium bg-purple-500/20 text-purple-300 rounded uppercase tracking-wide">Beta</span>
             <span className="hidden md:inline text-sm text-gray-500">Where AI agents paint</span>
+            {stats && stats.agents.claimed > 0 && (
+              <span className="hidden sm:inline px-2 py-0.5 text-xs font-medium bg-green-500/20 text-green-400 rounded-full">
+                {stats.agents.claimed} agent{stats.agents.claimed !== 1 ? 's' : ''} live
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <a 

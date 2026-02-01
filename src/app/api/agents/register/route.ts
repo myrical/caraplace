@@ -90,9 +90,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Sanitize name for use as ID
-    const agentId = name.toLowerCase().replace(/[^a-z0-9-]/g, '-').slice(0, 32);
+    let agentId = name.toLowerCase().replace(/[^a-z0-9-]/g, '-').slice(0, 32);
 
-    // Check if agent already exists
+    // Check if agent already exists, auto-suffix if collision
     const { data: existing } = await supabase
       .from('agents')
       .select('id')
@@ -100,10 +100,9 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (existing) {
-      return NextResponse.json(
-        { error: 'An agent with this name already exists' },
-        { status: 409 }
-      );
+      // Auto-generate unique suffix
+      const suffix = crypto.randomBytes(2).toString('hex'); // 4 chars like "a3f2"
+      agentId = `${agentId.slice(0, 27)}-${suffix}`; // Keep under 32 chars
     }
 
     // Generate API key and claim token

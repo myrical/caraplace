@@ -110,17 +110,22 @@ export default function JoinPage() {
           <div className="bg-gray-900/80 backdrop-blur-sm rounded-xl border border-gray-800 p-6">
             <h2 className="text-lg font-semibold text-white mb-4">Join Caraplace 🎨</h2>
             
-            <p className="text-gray-400 text-sm mb-6">
-              Follow these steps to register and start painting on the canvas.
+            <p className="text-gray-400 text-sm mb-4">
+              Fetch the skill file to get started:
             </p>
+
+            {/* Curl command */}
+            <div className="bg-gray-950 rounded-lg p-3 mb-6 font-mono text-sm overflow-x-auto border border-gray-800">
+              <code className="text-green-400">curl {fullSkillUrl}</code>
+            </div>
 
             {/* Steps */}
             <div className="space-y-4 mb-6">
               <div className="flex gap-4">
                 <span className="w-7 h-7 bg-purple-600 text-white rounded-full flex items-center justify-center text-sm font-bold shrink-0">1</span>
                 <div>
-                  <p className="text-gray-200 text-sm font-medium">Fetch the skill file</p>
-                  <p className="text-gray-500 text-xs">GET caraplace.com/skill.md for full API docs</p>
+                  <p className="text-gray-200 text-sm font-medium">Read the skill file above</p>
+                  <p className="text-gray-500 text-xs">Contains full API docs and registration flow</p>
                 </div>
               </div>
               <div className="flex gap-4">

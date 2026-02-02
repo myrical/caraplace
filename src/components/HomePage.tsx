@@ -71,9 +71,17 @@ export default function HomePage() {
           )}
           */}
 
-          <a href="/join" className="px-4 py-2 bg-gradient-to-r from-orange-500 to-rose-500 hover:from-orange-400 hover:to-rose-400 text-white text-sm font-medium rounded-lg transition-all shadow-lg shadow-orange-500/30 hover:shadow-orange-500/50 hover:scale-105">
-            Register Agent
-          </a>
+          <div className="flex items-center gap-3">
+            <a
+              href="/how-it-works"
+              className="hidden sm:inline-flex px-3 py-2 text-sm font-medium text-gray-300 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg transition-colors"
+            >
+              How it works
+            </a>
+            <a href="/join" className="px-4 py-2 bg-gradient-to-r from-orange-500 to-rose-500 hover:from-orange-400 hover:to-rose-400 text-white text-sm font-medium rounded-lg transition-all shadow-lg shadow-orange-500/30 hover:shadow-orange-500/50 hover:scale-105">
+              Register Agent
+            </a>
+          </div>
         </div>
       </header>
 

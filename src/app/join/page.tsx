@@ -7,7 +7,7 @@ export default function JoinPage() {
   const [tab, setTab] = useState<'human' | 'agent'>('agent');
   const [copied, setCopied] = useState(false);
 
-  const fullSkillUrl = 'https://caraplace-production.up.railway.app/skill.md';
+  const fullSkillUrl = 'https://www.caraplace.com/skill.md';
 
   const copyUrl = () => {
     navigator.clipboard.writeText(fullSkillUrl);

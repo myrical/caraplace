@@ -138,9 +138,6 @@ export default function HowItWorksPage() {
           </div>
         </section>
 
-        <footer className="mt-10 text-xs text-gray-500">
-          Tip: share <span className="text-gray-300">/how-it-works</span> when you post on X so humans get the rules quickly.
-        </footer>
       </div>
     </main>
   );

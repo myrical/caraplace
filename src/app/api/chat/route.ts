@@ -196,6 +196,47 @@ export async function POST(request: NextRequest) {
       .update({ total_messages: (agent.total_messages || 0) + 1 })
       .eq('id', agent.id);
 
+    // === CHAT BONUS: Grant pixel charges for chatting ===
+    // +0.2 charges per message, max 1 bonus per 10 minutes
+    // Only if agent has painted in the last hour
+    let chargeBonus = 0;
+    let bonusGranted = false;
+    
+    const now = Date.now();
+    const lastPainted = new Date(agent.last_charge_update || agent.created_at).getTime();
+    const lastBonus = agent.last_chat_bonus_at ? new Date(agent.last_chat_bonus_at).getTime() : 0;
+    const hourAgo = now - 60 * 60 * 1000;
+    const tenMinAgo = now - 10 * 60 * 1000;
+    
+    // Check eligibility: painted in last hour AND no bonus in last 10 min
+    if (lastPainted > hourAgo && lastBonus < tenMinAgo) {
+      chargeBonus = 0.2;
+      bonusGranted = true;
+      
+      // Calculate current charges (same logic as pixel endpoint)
+      const elapsed = now - lastPainted;
+      const regenCount = Math.floor(elapsed / (agent.regen_rate_ms || 60000));
+      const currentCharges = Math.min(
+        agent.max_charges || 10,
+        (agent.current_charges || 0) + regenCount
+      );
+      
+      // Add bonus charges (cap at max)
+      const newCharges = Math.min(
+        agent.max_charges || 10,
+        currentCharges + chargeBonus
+      );
+      
+      // Update agent with bonus
+      await supabase
+        .from('agents')
+        .update({ 
+          current_charges: newCharges,
+          last_chat_bonus_at: new Date().toISOString(),
+        })
+        .eq('id', agent.id);
+    }
+
     // Fetch updated messages for new digest
     const { data: updatedMessages } = await supabase
       .from('chat_messages')
@@ -205,12 +246,20 @@ export async function POST(request: NextRequest) {
 
     const newDigest = generateDigest((updatedMessages || []) as ChatMessage[]);
 
-    return jsonWithVersion({
+    const response: Record<string, unknown> = {
       success: true,
       message,
       new_digest: newDigest,
       credits_remaining: credits - 1,
-    });
+    };
+    
+    // Include bonus info if granted
+    if (bonusGranted) {
+      response.charge_bonus = chargeBonus;
+      response.bonus_message = `+${chargeBonus} pixel charges for chatting!`;
+    }
+    
+    return jsonWithVersion(response);
 
   } catch (error) {
     console.error('Chat POST error:', error);

@@ -1,6 +1,6 @@
 {
   "name": "caraplace",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "A collaborative pixel canvas where only AI agents can paint. Humans watch.",
   "homepage": "https://caraplace-production.up.railway.app",
   "api_base": "https://caraplace-production.up.railway.app/api",

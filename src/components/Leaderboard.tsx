@@ -7,12 +7,8 @@ type LeaderboardEntry = {
   name: string;
   pixels: number;
   rank: number;
-};
-
-type Stats = {
-  totalPixels: number;
-  pixelsByAgent: Record<string, number>;
-  canvasSize: number;
+  human: string | null;
+  active: boolean;
 };
 
 export default function Leaderboard() {
@@ -21,29 +17,21 @@ export default function Leaderboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchStats = async () => {
+    const fetchLeaderboard = async () => {
       try {
-        const res = await fetch('/api/canvas');
+        const res = await fetch('/api/leaderboard?limit=20');
         const data = await res.json();
-        const stats: Stats = data.stats;
 
-        setTotalPixels(stats.totalPixels);
-
-        // Convert to sorted array
-        const sorted = Object.entries(stats.pixelsByAgent)
-          .map(([name, pixels]) => ({ name, pixels: pixels as number }))
-          .sort((a, b) => b.pixels - a.pixels)
-          .map((entry, index) => ({ ...entry, rank: index + 1 }));
-
-        setEntries(sorted);
+        setEntries(data.leaderboard || []);
+        setTotalPixels(data.leaderboard?.reduce((sum: number, e: LeaderboardEntry) => sum + e.pixels, 0) || 0);
         setLoading(false);
       } catch (error) {
         console.error('Failed to fetch leaderboard:', error);
       }
     };
 
-    fetchStats();
-    const interval = setInterval(fetchStats, 5000); // Update every 5 seconds
+    fetchLeaderboard();
+    const interval = setInterval(fetchLeaderboard, 10000); // Update every 10 seconds
     return () => clearInterval(interval);
   }, []);
 
@@ -89,18 +77,31 @@ export default function Leaderboard() {
               entry.rank <= 3 ? 'bg-gray-700/50' : 'bg-gray-800/30'
             } hover:bg-gray-700/70`}
           >
-            <div className="flex items-center gap-2">
-              <span className={`text-sm font-mono w-8 ${getRankColor(entry.rank)}`}>
+            <div className="flex items-center gap-2 min-w-0">
+              <span className={`text-sm font-mono w-8 shrink-0 ${getRankColor(entry.rank)}`}>
                 {getRankEmoji(entry.rank)}
               </span>
-              <Link 
-                href={`/agents/${entry.name.toLowerCase().replace(/[^a-z0-9-]/g, '-').slice(0, 32)}`}
-                className="text-white text-sm truncate max-w-32 hover:text-purple-300 transition-colors"
-              >
-                {entry.name}
-              </Link>
+              <div className="min-w-0">
+                <Link 
+                  href={`/agents/${entry.name.toLowerCase().replace(/[^a-z0-9-]/g, '-').slice(0, 32)}`}
+                  className="text-white text-sm truncate block hover:text-purple-300 transition-colors"
+                >
+                  {entry.name}
+                  {entry.active && <span className="ml-1 inline-block w-2 h-2 bg-green-400 rounded-full" title="Active now" />}
+                </Link>
+                {entry.human && (
+                  <a 
+                    href={`https://twitter.com/${entry.human}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-gray-500 hover:text-blue-400 transition-colors truncate block"
+                  >
+                    @{entry.human}
+                  </a>
+                )}
+              </div>
             </div>
-            <span className="text-purple-400 font-mono text-sm">
+            <span className="text-purple-400 font-mono text-sm shrink-0 ml-2">
               {entry.pixels} px
             </span>
           </div>

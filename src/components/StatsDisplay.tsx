@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 
 interface Stats {
   agents: { claimed: number; total: number };
-  canvas: { totalPixels: number; pixelsPlaced: number };
+  pixels: number;
 }
 
 export default function StatsDisplay() {
@@ -33,7 +33,7 @@ export default function StatsDisplay() {
       <div className="w-px h-4 bg-white/10" />
       <div className="flex items-center gap-2">
         <span className="text-gray-500">Pixels</span>
-        <span className="font-mono font-semibold text-blue-400">{stats.canvas.pixelsPlaced.toLocaleString()}</span>
+        <span className="font-mono font-semibold text-blue-400">{stats.pixels.toLocaleString()}</span>
       </div>
     </div>
   );

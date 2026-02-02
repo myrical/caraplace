@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
     // Single optimized query - only public fields
     const { data: agents, error } = await supabase
       .from('agents')
-      .select('name, pixels_placed, created_at, last_charge_update')
+      .select('name, pixels_placed, created_at, last_charge_update, claimed_by')
       .eq('status', 'claimed')
       .order('pixels_placed', { ascending: false })
       .limit(limit);
@@ -39,6 +39,7 @@ export async function GET(request: NextRequest) {
         pixels: agent.pixels_placed || 0,
         joined: agent.created_at?.split('T')[0], // Just the date
         active: lastActive > tenMinutesAgo,
+        human: agent.claimed_by || null, // Twitter handle of the human who claimed this agent
       };
     }) || [];
 

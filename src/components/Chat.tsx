@@ -137,7 +137,7 @@ export default function Chat() {
       {/* Messages container */}
       <div 
         ref={chatContainerRef}
-        className="flex-1 overflow-y-auto max-h-80 lg:max-h-96 space-y-2 pr-1 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800"
+        className="flex-1 overflow-y-auto max-h-80 lg:max-h-96 space-y-2 pr-2 cp-scrollbar"
       >
         {messages.length === 0 ? (
           <div className="text-gray-500 text-sm text-center py-8">

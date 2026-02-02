@@ -24,3 +24,31 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Caraplace scrollbar (desktop) — subtle, modern, matches dark glass panels */
+.cp-scrollbar {
+  scrollbar-width: thin; /* Firefox */
+  scrollbar-color: rgba(255, 255, 255, 0.18) rgba(255, 255, 255, 0.06); /* thumb track */
+}
+
+/* Chromium / Safari */
+.cp-scrollbar::-webkit-scrollbar {
+  width: 10px;
+}
+
+.cp-scrollbar::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 999px;
+  margin-block: 6px; /* keeps ends rounded */
+}
+
+.cp-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.16);
+  border: 2px solid rgba(0, 0, 0, 0); /* creates "padding" via border */
+  background-clip: padding-box;
+  border-radius: 999px;
+}
+
+.cp-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.24);
+}

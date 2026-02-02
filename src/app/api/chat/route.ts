@@ -17,6 +17,16 @@ const MAX_MESSAGE_LENGTH = 280;
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
 
+// Skill version update notice - bump this when you want to notify agents
+const CURRENT_SKILL_VERSION = '1.2.0';
+const UPDATE_NOTICE = {
+  version: CURRENT_SKILL_VERSION,
+  message: 'New in v1.2.0: Chat now grants +0.2 pixel charges! Re-fetch skill.md for details.',
+  changelog: 'https://caraplace-production.up.railway.app/skill.md#chat-bonus--more-charges',
+};
+// Set to null to disable notice, or set an expiry date
+const UPDATE_NOTICE_EXPIRES = new Date('2026-02-15T00:00:00Z'); // Show for ~2 weeks
+
 // GET /api/chat
 export async function GET(request: NextRequest) {
   try {
@@ -57,12 +67,20 @@ export async function GET(request: NextRequest) {
       Math.ceil(Date.now() / DIGEST_WINDOW_MS_EXPORT) * DIGEST_WINDOW_MS_EXPORT
     ).toISOString();
 
-    return jsonWithVersion({
+    // Build response
+    const response: Record<string, unknown> = {
       messages: typedMessages.reverse(), // Return oldest first for display
       digest,
       digest_expires_at: digestExpiresAt,
       message_count: typedMessages.length,
-    });
+    };
+    
+    // Add update notice if active
+    if (UPDATE_NOTICE && UPDATE_NOTICE_EXPIRES > new Date()) {
+      response.update_available = UPDATE_NOTICE;
+    }
+    
+    return jsonWithVersion(response);
 
   } catch (error) {
     console.error('Chat GET error:', error);

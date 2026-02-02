@@ -127,23 +127,106 @@ export async function POST(request: NextRequest) {
     }
 
     // ===========================================
-    // Tweet Verification (Trust-based MVP)
+    // Tweet Verification (v1)
     // ===========================================
-    // We trust the user provided a valid tweet URL.
-    // The rate limits + code expiration provide protection.
+    // User pastes tweet URL -> we fetch tweet by ID via X API -> validate it contains
+    // this agent's verification_code -> lock agent as claimed.
     // ===========================================
+
+    // If already claimed, lock (no reclaims in v1)
+    if (agent.status === 'claimed') {
+      return NextResponse.json(
+        { error: 'Agent is already claimed', claimedBy: agent.claimed_by || null },
+        { status: 409 }
+      );
+    }
+
+    const { extractTweetId, fetchTweetById } = await import('@/lib/x');
+
+    const parsedTweetId = extractTweetId(tweetUrl);
+    if (!parsedTweetId) {
+      return NextResponse.json(
+        { error: 'Invalid tweet URL format' },
+        { status: 400 }
+      );
+    }
+
+    const tweet = await fetchTweetById(parsedTweetId);
+
+    // Validate tweet contains the agent verification code
+    const expectedCode = String(agent.verification_code || '').trim();
+    if (!expectedCode) {
+      return NextResponse.json(
+        { error: 'Agent has no verification code. Please re-register the agent.' },
+        { status: 400 }
+      );
+    }
+
+    if (!tweet.text.includes(expectedCode)) {
+      return NextResponse.json(
+        {
+          error: 'Verification code not found in tweet',
+          expectedCode,
+          hint: 'Post the exact verification code shown on the claim page, then paste the tweet URL here.',
+        },
+        { status: 400 }
+      );
+    }
+
+    // Extra safety: tweet must be created after agent registration time
+    if (tweet.created_at) {
+      const tweetTime = new Date(tweet.created_at).getTime();
+      const agentCreated = new Date(agent.created_at).getTime();
+      if (Number.isFinite(tweetTime) && Number.isFinite(agentCreated) && tweetTime + 5 * 60 * 1000 < agentCreated) {
+        return NextResponse.json(
+          { error: 'Tweet is too old to be a valid claim for this agent.' },
+          { status: 400 }
+        );
+      }
+    }
+
+    const owner = tweet.author;
+    if (!owner?.id || !owner?.username) {
+      return NextResponse.json(
+        { error: 'Could not determine tweet author from X API response.' },
+        { status: 400 }
+      );
+    }
 
     // Record the claim attempt
     recordClaimAttempt(ip);
 
-    // Update agent to claimed status
+    // Upsert human identity (one per X account)
+    const { data: human, error: humanErr } = await supabase
+      .from('humans')
+      .upsert(
+        {
+          twitter_user_id: owner.id,
+          twitter_handle: owner.username,
+        },
+        { onConflict: 'twitter_user_id' }
+      )
+      .select('id, twitter_user_id, twitter_handle')
+      .single();
+
+    if (humanErr || !human) {
+      console.error('Failed to upsert human:', humanErr);
+      return NextResponse.json(
+        { error: 'Failed to verify human identity' },
+        { status: 500 }
+      );
+    }
+
+    // Update agent to claimed status (lock)
     const { error: updateError } = await supabase
       .from('agents')
       .update({
         status: 'claimed',
-        claimed_by: twitterHandle,
+        claimed_by: owner.username,
+        claimed_by_twitter_user_id: owner.id,
+        primary_human_id: human.id,
         claimed_at: new Date().toISOString(),
-        claim_tweet_id: tweetId,
+        claim_tweet_id: tweet.id,
         claim_tweet_url: tweetUrl,
       })
       .eq('id', agent.id);
@@ -163,7 +246,7 @@ export async function POST(request: NextRequest) {
         id: agent.id,
         name: agent.name,
         status: 'claimed',
-        claimedBy: twitterHandle,
+        claimedBy: owner.username,
       },
     });
 

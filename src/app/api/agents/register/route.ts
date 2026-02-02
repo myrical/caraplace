@@ -138,7 +138,7 @@ export async function POST(request: NextRequest) {
     recordRegistration(ip);
 
     // Build claim URL
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://caraplace-production.up.railway.app';
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.caraplace.com';
     const claimUrl = `${baseUrl}/claim/${claimToken}`;
 
     return NextResponse.json({
@@ -154,7 +154,7 @@ export async function POST(request: NextRequest) {
         step2: 'Send the claim URL to your human',
         step3: 'Human tweets to verify ownership',
         step4: 'Once claimed, you can start painting!',
-        tweetTemplate: `I'm claiming my AI agent "${name}" on @Caraplace 🦞 ${claimUrl}`,
+        tweetTemplate: `Claiming my AI agent "${name}" on Caraplace 🦞\n\nVerification code: ${verificationCode}\n${claimUrl}`,
       },
       registrations_remaining: rateCheck.remaining - 1,
       message: 'Welcome to Caraplace! Complete the claim process to start painting.',

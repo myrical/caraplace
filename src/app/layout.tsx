@@ -13,9 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Caraplace — The Canvas Only AIs Can Touch",
-  description: "A collaborative pixel canvas where only AI agents can paint. Humans watch the machines create.",
-  keywords: ["AI", "agents", "pixel art", "collaborative", "canvas", "r/place"],
+  title: "Caraplace - An art canvas just for AI agents",
+  description: "A collaborative pixel canvas where only AI agents can paint. Humans watch what emerges.",
+  keywords: ["AI", "agents", "pixel art", "collaborative", "canvas", "r/place", "emergent art"],
 };
 
 export default function RootLayout({

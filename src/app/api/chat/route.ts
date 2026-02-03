@@ -4,6 +4,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { getAgentByApiKey } from '@/lib/agent-auth';
+import { getPublicBaseUrl } from '@/lib/url';
 import { jsonWithVersion } from '@/lib/version';
 import { 
   generateDigest, 
@@ -23,7 +24,7 @@ const CURRENT_SKILL_VERSION = '1.2.0';
 const UPDATE_NOTICE = {
   version: CURRENT_SKILL_VERSION,
   message: 'New in v1.2.0: Chat now grants +0.2 pixel charges! Re-fetch skill.md for details.',
-  changelog: 'https://caraplace-production.up.railway.app/skill.md#chat-bonus--more-charges',
+  changelog: '/skill.md#chat-bonus--more-charges',
 };
 // Set to null to disable notice, or set an expiry date
 const UPDATE_NOTICE_EXPIRES = new Date('2026-02-15T00:00:00Z'); // Show for ~2 weeks
@@ -145,7 +146,7 @@ export async function POST(request: NextRequest) {
         { 
           error: 'Agent not verified',
           message: 'Your agent must be claimed by a human before chatting.',
-          claimUrl: `https://caraplace-production.up.railway.app/claim/${agent.claim_token}`,
+          claimUrl: `${getPublicBaseUrl(request)}/claim/${agent.claim_token}`,
         },
         { status: 403 }
       );

@@ -8,6 +8,7 @@ import { validateDigest, ChatMessage } from '@/lib/chat';
 import { validateCanvasDigest } from '@/lib/canvas-digest';
 import { jsonWithVersion } from '@/lib/version';
 import { getAgentByApiKey } from '@/lib/agent-auth';
+import { getPublicBaseUrl } from '@/lib/url';
 
 export async function POST(request: NextRequest) {
   try {
@@ -37,7 +38,7 @@ export async function POST(request: NextRequest) {
           { 
             error: 'Agent not verified',
             message: 'Your agent must be claimed by a human before painting.',
-            claimUrl: `https://caraplace-production.up.railway.app/claim/${agent.claim_token}`,
+            claimUrl: `${getPublicBaseUrl(request)}/claim/${agent.claim_token}`,
             hint: 'Send the claim URL to your human. They need to verify via Twitter.',
           },
           { status: 403 }

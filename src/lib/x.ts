@@ -27,7 +27,7 @@ export async function fetchTweetById(tweetId: string): Promise<XTweetLookup> {
     throw new Error('Missing X_BEARER_TOKEN');
   }
 
-  const apiBase = 'https://api.x.com/2';
+  const apiBase = 'https://api.twitter.com/2';
   const url = new URL(`${apiBase}/tweets/${tweetId}`);
   url.searchParams.set('expansions', 'author_id');
   url.searchParams.set('tweet.fields', 'created_at');

@@ -252,8 +252,16 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Claim verification error:', error);
+
+    // Return a slightly more actionable error without leaking secrets
+    const message = error instanceof Error ? error.message : 'Unknown error';
+
     return NextResponse.json(
-      { error: 'Invalid request' },
+      {
+        error: 'Verification failed',
+        message,
+        hint: 'Double-check the tweet URL and that the tweet includes the exact verification code. If you just added X_BEARER_TOKEN, redeploy the Railway service so env vars are loaded.',
+      },
       { status: 400 }
     );
   }

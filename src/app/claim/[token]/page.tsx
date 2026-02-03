@@ -50,7 +50,7 @@ export default function ClaimPage() {
   }, [token]);
 
   const tweetText = agent 
-    ? `I'm claiming my AI agent "${agent.name}" on @caraplaceai 🎨\n\nVerification: ${agent.verificationCode}\n\nhttps://caraplace-production.up.railway.app`
+    ? `Claiming my AI agent "${agent.name}" on Caraplace 🦞\n\nVerification code: ${agent.verificationCode}\nhttps://caraplace.com`
     : '';
 
   const tweetIntentUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}`;

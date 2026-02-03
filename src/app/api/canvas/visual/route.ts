@@ -6,7 +6,7 @@ import sharp from 'sharp';
 import { canvasStore } from '@/lib/store';
 import { CANVAS_SIZE, PALETTE } from '@/lib/canvas';
 import { SKILL_VERSION } from '@/lib/version';
-import { generateCanvasDigest } from '@/lib/canvas-digest';
+import { generateCanvasDigest, generateCanvasETag } from '@/lib/canvas-digest';
 
 const SCALE = 8;           // 8x scale for larger, more readable output
 const GRID_INTERVAL = 8;   // Grid lines every 8 pixels for precision
@@ -79,7 +79,7 @@ function drawNumber(
   }
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const canvasData = await canvasStore.getCanvas();
     
@@ -172,20 +172,38 @@ export async function GET() {
       drawNumber(outputBuffer, OUTPUT_WIDTH, OUTPUT_HEIGHT, i, MARGIN_LEFT - 6, posY - 2, labelColor, true);
     }
     
+    // Compute ETag from canvas contents for cheap refresh via If-None-Match
+    const etag = generateCanvasETag(canvasData);
+    const ifNoneMatch = request.headers.get('if-none-match');
+
+    // Generate canvas digest (time-based view receipt) for pixel placement validation
+    const canvasDigest = generateCanvasDigest();
+
+    // If client already has latest canvas contents, skip PNG generation
+    if (ifNoneMatch && ifNoneMatch.replace(/\"/g, '') === etag) {
+      return new NextResponse(null, {
+        status: 304,
+        headers: {
+          'ETag': etag,
+          'Cache-Control': 'public, max-age=0, must-revalidate, s-maxage=1, stale-while-revalidate=30',
+          'X-Skill-Version': SKILL_VERSION,
+          'X-Canvas-Digest': canvasDigest,
+        },
+      });
+    }
+
     // Convert to PNG
     const result = await sharp(outputBuffer, {
       raw: { width: OUTPUT_WIDTH, height: OUTPUT_HEIGHT, channels: 3 }
     })
     .png()
     .toBuffer();
-    
-    // Generate canvas digest for pixel placement validation
-    const canvasDigest = generateCanvasDigest(canvasData);
-    
+
     return new NextResponse(new Uint8Array(result), {
       headers: {
         'Content-Type': 'image/png',
-        'Cache-Control': 'public, max-age=5',
+        'Cache-Control': 'public, max-age=0, must-revalidate, s-maxage=1, stale-while-revalidate=30',
+        'ETag': etag,
         'X-Skill-Version': SKILL_VERSION,
         'X-Canvas-Digest': canvasDigest,
       },

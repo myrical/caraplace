@@ -154,8 +154,7 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      const canvasData = await canvasStore.getCanvas();
-      const canvasValidation = validateCanvasDigest(canvas_digest, canvasData);
+      const canvasValidation = validateCanvasDigest(canvas_digest);
 
       if (!canvasValidation.valid) {
         return jsonWithVersion(

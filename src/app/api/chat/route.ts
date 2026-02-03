@@ -3,6 +3,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { getAgentByApiKey } from '@/lib/agent-auth';
 import { jsonWithVersion } from '@/lib/version';
 import { 
   generateDigest, 
@@ -129,11 +130,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Fetch agent
-    const { data: agent, error: agentError } = await supabase
-      .from('agents')
-      .select('*')
-      .eq('api_key', agentKey)
-      .single();
+    const { agent, error: agentError } = await getAgentByApiKey(agentKey);
 
     if (agentError || !agent) {
       return jsonWithVersion(

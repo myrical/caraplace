@@ -1,7 +1,7 @@
 // GET /api/agents/me - Get current agent status
 
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { getAgentByApiKey } from '@/lib/agent-auth';
 import { calculateChatCredits, PIXELS_PER_CHAT_EXPORT } from '@/lib/chat';
 
 export async function GET(request: NextRequest) {
@@ -18,11 +18,7 @@ export async function GET(request: NextRequest) {
     const apiKey = authHeader.slice(7);
 
     // Look up agent
-    const { data: agent, error } = await supabase
-      .from('agents')
-      .select('*')
-      .eq('api_key', apiKey)
-      .single();
+    const { agent, error } = await getAgentByApiKey(apiKey);
 
     if (error || !agent) {
       return NextResponse.json(

@@ -7,12 +7,7 @@ import { isValidPixel, PALETTE, CANVAS_SIZE } from '@/lib/canvas';
 import { validateDigest, ChatMessage } from '@/lib/chat';
 import { validateCanvasDigest } from '@/lib/canvas-digest';
 import { jsonWithVersion } from '@/lib/version';
-
-// Legacy hardcoded keys (for backwards compat during transition)
-const LEGACY_KEYS: Record<string, string> = {
-  'proxy-dev-key': 'Proxy',
-  'test-agent-key': 'TestAgent',
-};
+import { getAgentByApiKey } from '@/lib/agent-auth';
 
 export async function POST(request: NextRequest) {
   try {
@@ -21,23 +16,13 @@ export async function POST(request: NextRequest) {
 
     let agentId: string;
     let useChargeSystem = false;
-    let skipDigestCheck = false;
     let remainingCharges: number | null = null;
     let maxCharges: number | null = null;
     let nextChargeAt: string | null = null;
 
-    // Check legacy keys first (skip digest for backwards compat)
-    if (LEGACY_KEYS[agentKey]) {
-      agentId = LEGACY_KEYS[agentKey];
-      skipDigestCheck = true; // Legacy keys don't need digest
-    } 
-    // Check new API keys (cp_xxx format)
-    else if (agentKey?.startsWith('cp_')) {
-      const { data: agent, error } = await supabase
-        .from('agents')
-        .select('*')
-        .eq('api_key', agentKey)
-        .single();
+    // Only cp_xxx keys are accepted
+    if (agentKey?.startsWith('cp_')) {
+      const { agent, error } = await getAgentByApiKey(agentKey);
 
       if (error || !agent) {
         return jsonWithVersion(
@@ -110,7 +95,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate chat digest (proves agent read the chat)
-    if (!skipDigestCheck) {
+    {
       if (!chat_digest) {
         return jsonWithVersion(
           { 

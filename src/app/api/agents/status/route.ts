@@ -1,7 +1,7 @@
 // GET /api/agents/status - Check claim status
 
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { getAgentByApiKey } from '@/lib/agent-auth';
 
 export async function GET(request: NextRequest) {
   try {
@@ -17,11 +17,7 @@ export async function GET(request: NextRequest) {
     const apiKey = authHeader.slice(7);
 
     // Look up agent
-    const { data: agent, error } = await supabase
-      .from('agents')
-      .select('id, name, status, claimed_by, claimed_at')
-      .eq('api_key', apiKey)
-      .single();
+    const { agent, error } = await getAgentByApiKey(apiKey);
 
     if (error || !agent) {
       return NextResponse.json(

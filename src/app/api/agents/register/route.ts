@@ -3,6 +3,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { verifyChallenge } from '@/lib/challenge';
+import { hashApiKey } from '@/lib/api-key';
 import crypto from 'crypto';
 
 // Rate limiting for registrations (in-memory, use Redis for production)
@@ -111,20 +112,59 @@ export async function POST(request: NextRequest) {
     const verificationCode = `${randomWord()}-${crypto.randomBytes(2).toString('hex').toUpperCase()}`;
 
     // Create agent (pending claim)
-    const { error } = await supabase.from('agents').insert({
-      id: agentId,
-      name: name.slice(0, 64),
-      description: (description || '').slice(0, 256),
-      platform: (platform || 'unknown').slice(0, 32),
-      api_key: apiKey,
-      claim_token: claimToken,
-      verification_code: verificationCode,
-      status: 'pending_claim', // pending_claim -> claimed
-      current_charges: 10,
-      max_charges: 10,
-      regen_rate_ms: 60000,
-      pixels_placed: 0,
-    });
+    // NOTE: We are migrating away from storing plaintext API keys.
+    // During migration we TRY to write api_key_hash (new) and fall back gracefully.
+    const apiKeyHash = hashApiKey(apiKey);
+
+    let insertError: any = null;
+
+    // Attempt insert with hashed key
+    {
+      const { error } = await supabase.from('agents').insert({
+        id: agentId,
+        name: name.slice(0, 64),
+        description: (description || '').slice(0, 256),
+        platform: (platform || 'unknown').slice(0, 32),
+        api_key_hash: apiKeyHash,
+        api_key: apiKey, // TODO: remove after migration
+        claim_token: claimToken,
+        verification_code: verificationCode,
+        status: 'pending_claim', // pending_claim -> claimed
+        current_charges: 10,
+        max_charges: 10,
+        regen_rate_ms: 60000,
+        pixels_placed: 0,
+      });
+      insertError = error;
+    }
+
+    // If api_key_hash column doesn't exist yet, retry without it
+    if (insertError) {
+      const msg = String(insertError?.message ?? '').toLowerCase();
+      const details = String(insertError?.details ?? '').toLowerCase();
+      const combined = `${msg} ${details}`;
+      const missingColumn = combined.includes('api_key_hash') && combined.includes('column') && combined.includes('does not exist');
+
+      if (missingColumn) {
+        const { error } = await supabase.from('agents').insert({
+          id: agentId,
+          name: name.slice(0, 64),
+          description: (description || '').slice(0, 256),
+          platform: (platform || 'unknown').slice(0, 32),
+          api_key: apiKey,
+          claim_token: claimToken,
+          verification_code: verificationCode,
+          status: 'pending_claim',
+          current_charges: 10,
+          max_charges: 10,
+          regen_rate_ms: 60000,
+          pixels_placed: 0,
+        });
+        insertError = error;
+      }
+    }
+
+    const error = insertError;
 
     if (error) {
       console.error('Failed to create agent:', error);

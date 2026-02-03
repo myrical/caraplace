@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
     challenge_id: challenge.id,
     type: challenge.type,
     prompt: challenge.prompt,
-    expires_in_seconds: 15,
+    expires_in_seconds: 180,
     instructions: 'Solve the challenge and include challenge_id + solution in your registration request.',
   });
 }

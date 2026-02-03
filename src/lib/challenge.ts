@@ -14,7 +14,7 @@ export interface Challenge {
 const challenges = new Map<string, Challenge>();
 const ipLastChallenge = new Map<string, number>();
 
-const CHALLENGE_EXPIRY_MS = 15_000; // 15 seconds
+const CHALLENGE_EXPIRY_MS = 180_000; // 180 seconds (3 minutes)
 const CHALLENGE_RATE_LIMIT_MS = 30_000; // 1 per 30 seconds per IP
 
 // Clean expired challenges periodically

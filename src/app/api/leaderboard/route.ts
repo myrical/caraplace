@@ -39,7 +39,8 @@ export async function GET(request: NextRequest) {
         pixels: agent.pixels_placed || 0,
         joined: agent.created_at?.split('T')[0], // Just the date
         active: lastActive > tenMinutesAgo,
-        human: agent.claimed_by || null, // Twitter handle of the human who claimed this agent
+        // Hide Suru's handle for now (privacy)
+        human: agent.name?.toLowerCase() === 'suru' ? null : (agent.claimed_by || null),
       };
     }) || [];
 

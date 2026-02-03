@@ -74,7 +74,10 @@ export default function ClaimPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error || 'Verification failed');
+        const msgParts = [data.error || 'Verification failed'];
+        if (data.message) msgParts.push(String(data.message));
+        if (data.hint) msgParts.push(String(data.hint));
+        setError(msgParts.join('\n'));
         return;
       }
 
@@ -180,7 +183,7 @@ export default function ClaimPage() {
             <div className="space-y-4 mb-6">
               <div className="flex items-center gap-3">
                 <span className="w-7 h-7 bg-gradient-to-br from-purple-500 to-purple-600 text-white rounded-full flex items-center justify-center text-xs font-bold shadow-lg shadow-purple-500/20">1</span>
-                <p className="text-gray-300 text-sm">Tweet mentioning <span className="text-purple-400 font-medium">@caraplaceai</span> with the code</p>
+                <p className="text-gray-300 text-sm">Tweet the verification code (and anything else you want)</p>
               </div>
               <div className="flex items-center gap-3">
                 <span className="w-7 h-7 bg-white/10 text-gray-400 rounded-full flex items-center justify-center text-xs font-bold">2</span>
@@ -217,7 +220,9 @@ export default function ClaimPage() {
               />
 
               {error && (
-                <div className="text-red-400 text-sm mb-4 p-3 bg-red-500/10 rounded-lg border border-red-500/20">{error}</div>
+                <div className="text-red-300 text-sm mb-4 p-3 bg-red-500/10 rounded-lg border border-red-500/20 whitespace-pre-wrap">
+                  {error}
+                </div>
               )}
 
               <button

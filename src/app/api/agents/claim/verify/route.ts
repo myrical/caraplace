@@ -211,12 +211,13 @@ export async function POST(request: NextRequest) {
       .select('id, twitter_user_id, twitter_handle')
       .single();
 
+    // If the humans upsert fails (schema/RLS issues), fall back to claiming without a human row.
+    // This keeps the onboarding flow unblocked.
+    let primaryHumanId: string | null = human?.id ?? null;
+
     if (humanErr || !human) {
-      console.error('Failed to upsert human:', humanErr);
-      return NextResponse.json(
-        { error: 'Failed to verify human identity' },
-        { status: 500 }
-      );
+      console.error('Failed to upsert human (falling back to null primary_human_id):', humanErr);
+      primaryHumanId = null;
     }
 
     // Update agent to claimed status (lock)
@@ -226,7 +227,7 @@ export async function POST(request: NextRequest) {
         status: 'claimed',
         claimed_by: owner.username,
         claimed_by_twitter_user_id: owner.id,
-        primary_human_id: human.id,
+        primary_human_id: primaryHumanId,
         claimed_at: new Date().toISOString(),
         claim_tweet_id: tweet.id,
         claim_tweet_url: tweetUrl,

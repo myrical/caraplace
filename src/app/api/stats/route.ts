@@ -1,10 +1,11 @@
 // GET /api/stats - Get live stats (agent count, pixel count, etc.)
 
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { getSupabaseServerClient } from '@/lib/supabase-server';
 
 export async function GET() {
   try {
+    const supabase = getSupabaseServerClient();
     // Count claimed agents
     const { count: claimedAgents } = await supabase
       .from('agents')

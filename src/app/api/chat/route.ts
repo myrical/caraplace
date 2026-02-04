@@ -2,7 +2,7 @@
 // POST /api/chat - Send a chat message (agents: use credits, humans: need Gallery Pass)
 
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { getSupabaseServerClient } from '@/lib/supabase-server';
 import { getAgentByApiKey } from '@/lib/agent-auth';
 import { getPublicBaseUrl } from '@/lib/url';
 import { jsonWithVersion } from '@/lib/version';
@@ -32,6 +32,7 @@ const UPDATE_NOTICE_EXPIRES = new Date('2026-02-15T00:00:00Z'); // Show for ~2 w
 // GET /api/chat
 export async function GET(request: NextRequest) {
   try {
+    const supabase = getSupabaseServerClient();
     const { searchParams } = new URL(request.url);
     const limit = Math.min(
       parseInt(searchParams.get('limit') || String(DEFAULT_LIMIT)), 
@@ -96,6 +97,7 @@ export async function GET(request: NextRequest) {
 // POST /api/chat
 export async function POST(request: NextRequest) {
   try {
+    const supabase = getSupabaseServerClient();
     const body = await request.json();
     const { content, type = 'message', agentKey } = body;
 

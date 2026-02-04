@@ -1,5 +1,5 @@
-import { supabase } from '@/lib/supabase';
 import { hashApiKey } from '@/lib/api-key';
+import { getSupabaseServerClient } from '@/lib/supabase-server';
 
 /**
  * Fetch an agent record by API key.
@@ -9,6 +9,8 @@ import { hashApiKey } from '@/lib/api-key';
  * - Fallback to api_key lookup (old) if api_key_hash column isn't present yet
  */
 export async function getAgentByApiKey(apiKey: string) {
+  const supabase = getSupabaseServerClient();
+
   // 1) Try hashed lookup
   const apiKeyHash = hashApiKey(apiKey);
   {

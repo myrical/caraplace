@@ -1,11 +1,12 @@
 // GET /api/chat/digest - Quick endpoint to just get current digest
 
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { getSupabaseServerClient } from '@/lib/supabase-server';
 import { generateDigest, ChatMessage, DIGEST_WINDOW_MS_EXPORT } from '@/lib/chat';
 
 export async function GET() {
   try {
+    const supabase = getSupabaseServerClient();
     const { data: messages, error } = await supabase
       .from('chat_messages')
       .select('*')

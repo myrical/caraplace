@@ -2,7 +2,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { canvasStore } from '@/lib/store';
-import { supabase } from '@/lib/supabase';
+import { getSupabaseServerClient } from '@/lib/supabase-server';
 import { isValidPixel, PALETTE, CANVAS_SIZE } from '@/lib/canvas';
 import { validateDigest, ChatMessage } from '@/lib/chat';
 import { validateCanvasDigest } from '@/lib/canvas-digest';
@@ -12,6 +12,7 @@ import { getPublicBaseUrl } from '@/lib/url';
 
 export async function POST(request: NextRequest) {
   try {
+    const supabase = getSupabaseServerClient();
     const body = await request.json();
     const { x, y, color, agentKey, chat_digest, canvas_digest } = body;
 

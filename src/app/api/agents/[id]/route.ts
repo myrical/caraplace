@@ -1,13 +1,14 @@
 // GET /api/agents/[id] - Get public agent profile
 
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { getSupabaseServerClient } from '@/lib/supabase-server';
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const supabase = getSupabaseServerClient();
     const { id } = await params;
     const agentId = id.toLowerCase();
 

@@ -4,7 +4,7 @@
 // Protected by admin secret.
 
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { getSupabaseServerClient } from '@/lib/supabase-server';
 import { canvasStore } from '@/lib/store';
 import { isValidPixel, CANVAS_SIZE, PALETTE } from '@/lib/canvas';
 import { generateDigest, calculateChatCredits, ChatMessage } from '@/lib/chat';
@@ -45,6 +45,7 @@ const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 export async function POST(request: NextRequest) {
   try {
+    const supabase = getSupabaseServerClient();
     const body = await request.json();
     const { secret, count = 3, delayMs = 0 } = body; // delayMs between each agent
 

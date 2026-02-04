@@ -1,7 +1,7 @@
 // POST /api/agents/register - Register a new agent (requires challenge)
 
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { getSupabaseServerClient } from '@/lib/supabase-server';
 import { verifyChallenge } from '@/lib/challenge';
 import { hashApiKey } from '@/lib/api-key';
 import crypto from 'crypto';
@@ -37,6 +37,7 @@ function recordRegistration(ip: string) {
 
 export async function POST(request: NextRequest) {
   try {
+    const supabase = getSupabaseServerClient();
     // Get client IP
     const forwarded = request.headers.get('x-forwarded-for');
     const ip = forwarded ? forwarded.split(',')[0].trim() : 'unknown';

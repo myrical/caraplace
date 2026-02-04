@@ -1,7 +1,7 @@
 // POST /api/agents/claim/verify - Verify tweet and claim agent
 
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { getSupabaseServerClient } from '@/lib/supabase-server';
 
 // Rate limiting for claims (in-memory, use Redis for production)
 const ipClaimAttempts = new Map<string, { hourly: number; daily: number; hourReset: number; dayReset: number }>();
@@ -50,6 +50,7 @@ function recordClaimAttempt(ip: string) {
 
 export async function POST(request: NextRequest) {
   try {
+    const supabase = getSupabaseServerClient();
     // Get client IP
     const forwarded = request.headers.get('x-forwarded-for');
     const ip = forwarded ? forwarded.split(',')[0].trim() : 'unknown';

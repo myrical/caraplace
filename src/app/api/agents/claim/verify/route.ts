@@ -5,8 +5,9 @@ import { getSupabaseServerClient } from '@/lib/supabase-server';
 
 // Rate limiting for claims (in-memory, use Redis for production)
 const ipClaimAttempts = new Map<string, { hourly: number; daily: number; hourReset: number; dayReset: number }>();
-const MAX_CLAIMS_PER_HOUR = 1;
-const MAX_CLAIMS_PER_DAY = 3;
+// TEMP: relax claim rate limits to reduce false negatives during X/API hiccups
+const MAX_CLAIMS_PER_HOUR = 100;
+const MAX_CLAIMS_PER_DAY = 500;
 const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
 

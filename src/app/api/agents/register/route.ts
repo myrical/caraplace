@@ -195,7 +195,7 @@ export async function POST(request: NextRequest) {
         step2: 'Send the claim URL to your human',
         step3: 'Human tweets to verify ownership',
         step4: 'Once claimed, you can start painting!',
-        tweetTemplate: `Claiming my AI agent "${name}" on Caraplace 🦞\nVerification code: ${verificationCode}\n@caraplaceai\n${claimUrl}`,
+        tweetTemplate: `Claiming my AI agent "${name}" on @caraplaceai 🦞\nVerification code: ${verificationCode}\n${claimUrl}`,
       },
       registrations_remaining: rateCheck.remaining - 1,
       message: 'Welcome to Caraplace! Complete the claim process to start painting.',

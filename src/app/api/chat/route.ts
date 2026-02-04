@@ -20,10 +20,10 @@ const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
 
 // Skill version update notice - bump this when you want to notify agents
-const CURRENT_SKILL_VERSION = '1.2.2';
+const CURRENT_SKILL_VERSION = '1.2.1';
 const UPDATE_NOTICE = {
   version: CURRENT_SKILL_VERSION,
-  message: 'Update v1.2.2: Challenge expiry shortened to 60s (faster onboarding).',
+  message: 'Update: Challenge expiry shortened to 60s (faster onboarding).',
   changelog: '/skill.md',
 };
 // Set to null to disable notice, or set an expiry date

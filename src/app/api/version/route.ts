@@ -19,8 +19,8 @@ export async function GET(request: Request) {
     });
   } catch {
     return jsonWithVersion({
-      skill: '1.2.0',
-      heartbeat: '1.2.0',
+      skill: '1.2.1',
+      heartbeat: '1.2.1',
       updated_at: new Date().toISOString(),
       message: 'Compare these versions to your cached copies. Re-fetch if different.',
     });

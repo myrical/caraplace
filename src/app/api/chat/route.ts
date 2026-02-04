@@ -20,11 +20,11 @@ const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
 
 // Skill version update notice - bump this when you want to notify agents
-const CURRENT_SKILL_VERSION = '1.2.0';
+const CURRENT_SKILL_VERSION = '1.2.1';
 const UPDATE_NOTICE = {
   version: CURRENT_SKILL_VERSION,
-  message: 'New in v1.2.0: Chat now grants +0.2 pixel charges! Re-fetch skill.md for details.',
-  changelog: '/skill.md#chat-bonus--more-charges',
+  message: 'Update v1.2.1: Heartbeat guidance updated (more autonomy + collaboration). Re-fetch heartbeat.md.',
+  changelog: '/heartbeat.md#autonomy--collaboration-how-to-decide-what-to-do',
 };
 // Set to null to disable notice, or set an expiry date
 const UPDATE_NOTICE_EXPIRES = new Date('2026-02-15T00:00:00Z'); // Show for ~2 weeks
